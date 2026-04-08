@@ -171,7 +171,7 @@ metadata:
   name: claude-code-config
   namespace: agent-sandboxes
 data:
-  ANTHROPIC_BASE_URL: "http://qwen25-14b-predictor.inference.svc.cluster.local:8080"
+  ANTHROPIC_BASE_URL: "http://qwen25-14b.inference.svc.cluster.local:8080"
   ANTHROPIC_DEFAULT_SONNET_MODEL: "qwen25-14b"
   ANTHROPIC_DEFAULT_OPUS_MODEL: "qwen25-14b"
   ANTHROPIC_DEFAULT_HAIKU_MODEL: "qwen25-14b"
@@ -283,10 +283,23 @@ sequenceDiagram
 
 | Componente | Tecnologia | Namespace |
 |---|---|---|
-| Model serving | vLLM / RHAI Inference Server | `inference` |
-| Modelo | Qwen 2.5 14B Instruct | `inference` |
+| Model serving | Upstream vLLM v0.19.0 (ADR-011) | `inference` |
+| Deploy method | Plain Deployment+Service (ADR-012) | `inference` |
+| Modelo | Qwen 2.5 14B Instruct FP8-dynamic | `inference` |
+| GPU | NVIDIA L4 24GB (1x) | — |
 | Guardrails (GA) | TrustyAI Guardrails Orchestrator | `inference` |
 | Guardrails (TP) | NeMo Guardrails | `inference` |
+
+**Tuning para L4 24GB (Sprint 1):**
+
+| Parametro | Valor | Racional |
+|---|---|---|
+| `--max-model-len` | `24576` | System prompt ~12K + output 2K + margem. 32K excede KV cache do L4. |
+| `--gpu-memory-utilization` | `0.95` | Maximiza capacidade no L4 24GB |
+| `--enforce-eager` | ativado | Desabilita CUDA graph capture. Necessario: (1) GPU memory pressure com 95% utilization, (2) OpenShift dropa `ALL` capabilities incluindo `IPC_LOCK` |
+| `--enable-chunked-prefill` | ativado | Permite processar prefill em chunks, reduz memory spikes em prompts grandes (~12K system prompt) |
+| `--tool-call-parser=hermes` | hermes | Parser de tool calls compativel com Qwen (template Hermes) |
+| `model-cache` volume | PVC 30Gi (gp3-csi) | Modelo (~16GB com cache) persiste entre restarts. PVC criado via `infra/vllm/manifests/pvc.yaml`. |
 
 **Fluxo de request:**
 

@@ -184,6 +184,13 @@ Este eh o checkpoint mais importante do PoC. Se Claude Code + Qwen 2.5 14B nao p
 >
 > **Fases PRD:** 2 + 3
 
+### 2.0 Hardening Sprint 1 (carry-over)
+
+- [x] Adicionar egress NetworkPolicy para namespace `inference` (DNS + HuggingFace 443 only)
+- [x] Migrar `model-cache` de `emptyDir` para `PVC` 30Gi gp3-csi (modelo 16GB persistido, restart sem re-download)
+- [x] Remover NetworkPolicies temporarias (`allow-claude-egress-temp`, `allow-builds-egress`)
+- [x] Rebuild imagem Claude Code com PATH corrigido (`/opt/app-root/src/.local/bin`)
+
 ### 2.1 TrustyAI Guardrails (Fase 2)
 
 - [ ] Instalar Red Hat OpenShift AI Operator

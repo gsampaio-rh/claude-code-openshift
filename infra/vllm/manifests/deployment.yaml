@@ -93,7 +93,7 @@ spec:
             timeoutSeconds: 5
       volumes:
         - name: model-cache
-          emptyDir:
-            sizeLimit: 30Gi
+          persistentVolumeClaim:
+            claimName: qwen25-14b-model-cache
         - name: tmp
           emptyDir: {}
