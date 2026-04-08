@@ -50,7 +50,7 @@ Sprint 5 ░░░░░░░░░░░░░░░░████ CI/CD + In
 **Artefatos:**
 
 ```
-cluster/
+infra/cluster/
 ├── operators/
 │   ├── gpu-operator.yaml            # Subscription + OperatorGroup
 │   ├── nfd-operator.yaml            # Subscription
@@ -68,7 +68,7 @@ cluster/
 **Artefatos:**
 
 ```
-cluster/
+infra/cluster/
 ├── namespaces/
 │   ├── namespaces.yaml              # Todos os namespaces
 │   ├── network-policies.yaml        # Regras de isolamento
@@ -87,16 +87,16 @@ cluster/
 **Artefatos:**
 
 ```
-inference/
-├── vllm/
-│   ├── values.yaml                  # Helm values para vLLM
-│   └── kustomization.yaml           # Ou Helm wrapper
+infra/vllm/
+├── values.yaml                      # Helm values para vLLM
+└── kustomization.yaml               # Ou Helm wrapper
 ```
 
 ### 1.5 Claude Code standalone (Fase 1a)
 
 - [ ] Criar ConfigMap `claude-code-config` no namespace `agent-sandboxes` com env vars do agente
-- [ ] Deploy pod standalone: `node:20-slim` + Claude Code CLI (`npm install -g @anthropic-ai/claude-code`)
+- [ ] Build e push da imagem custom (UBI9 nodejs-22 + Claude Code CLI) via `infra/claude-code/scripts/build-image.sh`
+- [ ] Deploy pod standalone com imagem custom
 - [ ] Configurar `ANTHROPIC_BASE_URL` apontando direto pro vLLM (sem Guardrails por enquanto)
 - [ ] Validar: `oc exec -it claude-code-standalone -- claude --headless "write a fibonacci function in python"`
 - [ ] Testar prompts de coding progressivos:
@@ -110,10 +110,12 @@ inference/
 **Artefatos:**
 
 ```
-agent/
-├── configmap.yaml                   # ConfigMap claude-code-config
-├── standalone-pod.yaml              # Pod standalone
-└── Dockerfile                       # Image base (node:20-slim + claude CLI)
+infra/claude-code/
+├── manifests/
+│   ├── configmap.yaml               # ConfigMap claude-code-config
+│   └── standalone-pod.yaml          # Pod standalone
+├── scripts/                         # build, deploy, verify, cleanup
+└── Dockerfile                       # Image base (UBI9 nodejs-22 + Claude Code CLI)
 ```
 
 **DECISAO: Go/No-Go do modelo**
@@ -159,13 +161,12 @@ Este eh o checkpoint mais importante do PoC. Se Claude Code + Qwen 2.5 14B nao p
 **Artefatos:**
 
 ```
-inference/
-├── guardrails/
-│   ├── datasciencecluster.yaml      # TrustyAI habilitado
+infra/guardrails/
+├── manifests/
 │   ├── guardrails-orchestrator.yaml # CRD do orchestrator
-│   └── detectors/
-│       ├── pii-detector.yaml        # Regex rules pra PII
-│       └── content-filter.yaml      # Filtros de conteudo
+│   ├── orchestrator-config.yaml     # Config do orchestrator
+│   └── gateway-config.yaml          # Rotas do gateway
+├── scripts/                         # check, deploy, verify
 ```
 
 ### 2.2 NeMo Guardrails (Fase 2 — opcional, tech preview)
@@ -178,12 +179,11 @@ inference/
 **Artefatos:**
 
 ```
-inference/
-├── nemo/
-│   ├── deployment.yaml
-│   └── colang-rules/
-│       ├── input-rails.co           # Regras de input
-│       └── output-rails.co          # Regras de output
+infra/nemo/
+├── deployment.yaml
+└── colang-rules/
+    ├── input-rails.co               # Regras de input
+    └── output-rails.co              # Regras de output
 ```
 
 ### 2.2a Migrar standalone pra Guardrails
@@ -200,7 +200,7 @@ inference/
 - [ ] Criar Route OpenShift com TLS termination
 - [ ] Configurar OIDC auth (OpenShift OAuth)
 - [ ] Criar Terraform template reusando ConfigMap `claude-code-config` do Sprint 1:
-  - Mesma image base (node:20-slim + claude CLI) ja validada
+  - Mesma imagem custom (UBI9 + Claude Code) ja validada
   - Git + ferramentas de dev
   - `envFrom: configMapRef: claude-code-config`
 - [ ] Validar: dev acessa Coder UI, cria workspace, Claude Code responde
@@ -253,7 +253,7 @@ coder/
 **Artefatos:**
 
 ```
-cluster/
+infra/cluster/
 ├── namespaces/
 │   └── network-policies.yaml        # Atualizar com regras restritivas
 coder/
@@ -479,15 +479,10 @@ claude-code-openshift/
 │   ├── adrs/
 │   ├── references/
 │   └── results/                     # Resultados do PoC (Sprint 5)
-├── agent/
-│   ├── configmap.yaml               # ConfigMap claude-code-config
-│   ├── standalone-pod.yaml          # Pod standalone
-│   └── Dockerfile                   # Image base (node:20-slim + claude CLI)
-├── cluster/
-│   ├── operators/                   # Subscriptions dos operators
-│   └── namespaces/                  # NS, NetworkPolicy, Quotas, RBAC
-├── inference/
-│   ├── vllm/                        # Helm values do vLLM
+├── infra/
+│   ├── claude-code/                 # Agent image, manifests, scripts
+│   ├── cluster/                     # Operators, NS, NetworkPolicy, Quotas, RBAC
+│   ├── vllm/                        # KServe model serving
 │   ├── guardrails/                  # TrustyAI config
 │   └── nemo/                        # NeMo Guardrails (opcional)
 ├── coder/

@@ -150,7 +150,7 @@ flowchart TB
 | **CDE-embedded** | Fase 3 | Coder workspace (VS Code / terminal) | Dev interativo |
 
 **Standalone deploy (Fase 1):**
-1. Pod simples com `node:20-slim` + `claude` CLI instalado via npm
+1. Pod com imagem custom UBI (`registry.access.redhat.com/ubi9/nodejs-22` + Claude Code CLI)
 2. `ANTHROPIC_BASE_URL` aponta direto pro vLLM (sem Guardrails ainda)
 3. Dev interage via `oc exec -it` ou `kubectl port-forward`
 4. Valida: agente conversa com modelo local, responde prompts de coding
@@ -171,8 +171,14 @@ metadata:
   name: claude-code-config
   namespace: agent-sandboxes
 data:
-  ANTHROPIC_BASE_URL: "http://vllm.inference.svc:8000/v1"
-  ANTHROPIC_DEFAULT_SONNET_MODEL: "Qwen/Qwen2.5-14B-Instruct"
+  ANTHROPIC_BASE_URL: "http://qwen25-14b-predictor.inference.svc.cluster.local:8080"
+  ANTHROPIC_DEFAULT_SONNET_MODEL: "qwen25-14b"
+  ANTHROPIC_DEFAULT_OPUS_MODEL: "qwen25-14b"
+  ANTHROPIC_DEFAULT_HAIKU_MODEL: "qwen25-14b"
+  ANTHROPIC_AUTH_TOKEN: "not-needed"
+  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+  CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS: "1"
+  CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
   CLAUDE_CODE_MAX_OUTPUT_TOKENS: "4096"
   MAX_THINKING_TOKENS: "0"
 ```
@@ -458,15 +464,23 @@ flowchart TB
 
 Configuradas via ConfigMap `claude-code-config` no namespace `agent-sandboxes`. Consumidas tanto pelo pod standalone quanto pelos Coder workspace templates.
 
+**Refs:** [vLLM Claude Code docs](https://docs.vllm.ai/en/latest/serving/integrations/claude_code/) | [Red Hat Developer article](https://developers.redhat.com/articles/2026/03/26/integrate-claude-code-red-hat-ai-inference-server-openshift) | [Issue #36998](https://github.com/anthropics/claude-code/issues/36998)
+
 | Variavel | Fase 1 (standalone) | Fase 2+ (com Guardrails) | Proposito |
 |---|---|---|---|
-| `ANTHROPIC_BASE_URL` | `http://vllm.inference.svc:8000/v1` | `http://guardrails.inference.svc:8080` | Endpoint de inferencia |
-| `ANTHROPIC_API_KEY` | `sk-placeholder` | Injetado via SPIFFE token exchange | Identidade do agente |
-| `ANTHROPIC_DEFAULT_SONNET_MODEL` | `Qwen/Qwen2.5-14B-Instruct` | `Qwen/Qwen2.5-14B-Instruct` | Modelo no vLLM |
-| `MCP_URL` | N/A | `https://mcp-gateway.mcp-gateway.svc:8443` | Endpoint unico de tools |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | N/A | `http://otel-collector.observability.svc:4317` | Traces |
-| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `4096` | `4096` | Limite de output |
+| `ANTHROPIC_BASE_URL` | `http://qwen25-14b-predictor.inference.svc.cluster.local:8080` | `http://guardrails-orchestrator-gateway.inference.svc:8080` | Endpoint de inferencia (sem `/v1` — vLLM implementa Anthropic Messages API) |
+| `ANTHROPIC_API_KEY` | `not-needed` | Injetado via SPIFFE token exchange | Identidade do agente (vLLM nao requer auth por padrao) |
+| `ANTHROPIC_AUTH_TOKEN` | `not-needed` | Token SPIFFE | Header `Authorization: Bearer` (obrigatorio) |
+| `ANTHROPIC_DEFAULT_SONNET_MODEL` | `qwen25-14b` | `qwen25-14b` | Deve ser o `--served-model-name` do vLLM, nao o HF ID |
+| `ANTHROPIC_DEFAULT_OPUS_MODEL` | `qwen25-14b` | `qwen25-14b` | Mesmo modelo pra todos os tiers |
+| `ANTHROPIC_DEFAULT_HAIKU_MODEL` | `qwen25-14b` | `qwen25-14b` | Mesmo modelo pra todos os tiers |
+| `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `1` | `1` | Impede conexoes de startup ao api.anthropic.com (issue #36998) |
+| `CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS` | `1` | `1` | Evita falha no modo interativo em pods sem internet |
+| `CLAUDE_CODE_ATTRIBUTION_HEADER` | `0` | `0` | Desabilita hash por-request que quebra prefix caching no vLLM |
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `4096` | `4096` | Limite de output (ajustar conforme VRAM) |
 | `MAX_THINKING_TOKENS` | `0` | `0` | Desabilitado para Qwen |
+| `CLAUDE_CODE_ENABLE_TELEMETRY` | N/A | `1` | Habilita OTEL nativo do Claude Code |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | N/A | `http://otel-collector.observability.svc:4317` | Traces |
 
 ## 6. Decisoes arquiteturais
 
@@ -482,3 +496,5 @@ Ver [ADRs](../adrs/) para o racional de cada decisao.
 | ADR-006 | SPIFFE/Kagenti para identidade (nao API keys) |
 | ADR-007 | Garak em pipeline Tekton (nao scan manual) |
 | ADR-008 | Claude Code standalone antes do Coder (fail fast) |
+| ADR-009 | UBI base image para agente (nao node:slim community) |
+| ADR-010 | Estrutura `infra/` para manifests e scripts |

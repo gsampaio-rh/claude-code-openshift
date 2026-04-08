@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: agent-sandboxes-quota
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/part-of: agentops
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    persistentvolumeclaims: "20"
+    requests.storage: 200Gi
+    pods: "25"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: inference-quota
+  namespace: inference
+  labels:
+    app.kubernetes.io/part-of: agentops
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 32Gi
+    limits.cpu: "16"
+    limits.memory: 64Gi
+    persistentvolumeclaims: "5"
+    requests.storage: 100Gi
+    pods: "10"
+    requests.nvidia.com/gpu: "2"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: coder-quota
+  namespace: coder
+  labels:
+    app.kubernetes.io/part-of: agentops
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "5"
+    requests.storage: 50Gi
+    pods: "10"

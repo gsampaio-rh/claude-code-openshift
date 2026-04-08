@@ -1,0 +1,112 @@
+# Agent sandboxes: only allow egress to inference, mcp-gateway, observability, DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-sandboxes-egress
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/part-of: agentops
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Inference (Guardrails / vLLM)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: inference
+      ports:
+        - port: 8080
+          protocol: TCP
+        - port: 8000
+          protocol: TCP
+    # MCP Gateway
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mcp-gateway
+      ports:
+        - port: 8443
+          protocol: TCP
+    # OTEL Collector
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - port: 4317
+          protocol: TCP
+        - port: 4318
+          protocol: TCP
+    # External registries (GitHub, npm) — controlled egress
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+---
+# Inference namespace: allow ingress from agent-sandboxes and cicd
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: inference-allow-ingress
+  namespace: inference
+  labels:
+    app.kubernetes.io/part-of: agentops
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: agent-sandboxes
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cicd
+      ports:
+        - port: 8080
+          protocol: TCP
+        - port: 8000
+          protocol: TCP
+    # Allow ingress from OpenShift ingress controller (Routes)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+---
+# Default deny ingress for agent-sandboxes (only Coder and Kagenti can reach)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-sandboxes-ingress
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/part-of: agentops
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: coder
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: agentops

@@ -1,0 +1,21 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: nfd
+  namespace: openshift-nfd
+spec:
+  channel: stable
+  name: nfd
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+---
+# Create NFD instance after operator is ready
+apiVersion: nfd.openshift.io/v1
+kind: NodeFeatureDiscovery
+metadata:
+  name: nfd-instance
+  namespace: openshift-nfd
+spec:
+  operand:
+    image: registry.redhat.io/openshift4/ose-node-feature-discovery-rhel9:v4.18

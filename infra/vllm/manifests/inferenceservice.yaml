@@ -1,0 +1,26 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: qwen25-14b
+  namespace: inference
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+  labels:
+    opendatahub.io/dashboard: "true"
+    app.kubernetes.io/part-of: agentops
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: vLLM
+      runtime: qwen25-14b
+      storageUri: hf://RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic
+      resources:
+        requests:
+          cpu: "1"
+          memory: 8Gi
+          nvidia.com/gpu: "1"
+        limits:
+          cpu: "4"
+          memory: 24Gi
+          nvidia.com/gpu: "1"

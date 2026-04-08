@@ -1,0 +1,112 @@
+# Guardrails Gateway routes for AgentOps
+# Adapted from ~/redhat/iac/trustyai-guardrails
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: gateway-config
+  namespace: inference
+  labels:
+    app.kubernetes.io/part-of: agentops
+data:
+  config.yaml: |
+    orchestrator:
+      host: "localhost"
+      port: 8032
+
+    detectors:
+      # PII detection (input)
+      - name: pii_input
+        server: regex
+        input: true
+        output: false
+        detector_params:
+          regex:
+            - email
+            - credit-card
+            - "\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}"
+            - "\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}"
+
+      # PII detection (output — prevent leaking PII in responses)
+      - name: pii_output
+        server: regex
+        input: false
+        output: true
+        detector_params:
+          regex:
+            - email
+            - credit-card
+            - "\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}"
+            - "\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}"
+
+      # Prompt injection detection (input)
+      - name: injection_input
+        server: regex
+        input: true
+        output: false
+        detector_params:
+          regex:
+            - "(?i)(ignore\\s+(all\\s+)?previous\\s+instructions|reveal\\s+(your\\s+)?system\\s+prompt|disregard\\s+(your\\s+)?instructions|you\\s+are\\s+now\\s+in\\s+developer\\s+mode|override\\s+safety)"
+
+      # Secret leak detection (input)
+      - name: secrets_input
+        server: regex
+        input: true
+        output: false
+        detector_params:
+          regex:
+            - "(?i)(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36,}|AKIA[0-9A-Z]{16})"
+
+      # Full safety pipeline (input)
+      - name: safety_input
+        server: regex
+        input: true
+        output: false
+        detector_params:
+          regex:
+            - email
+            - credit-card
+            - "\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}"
+            - "\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}"
+            - "(?i)(ignore\\s+(all\\s+)?previous\\s+instructions|reveal\\s+(your\\s+)?system\\s+prompt|disregard\\s+(your\\s+)?instructions|you\\s+are\\s+now\\s+in\\s+developer\\s+mode|override\\s+safety)"
+            - "(?i)(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36,}|AKIA[0-9A-Z]{16})"
+            - "<tool_call>|<function_call>|</tool_call>|</function_call>"
+            - "(?i)(admin_override|;\\s*DROP\\s+TABLE|;\\s*--\\s*$|UNION\\s+SELECT)"
+
+      # Full safety pipeline (output)
+      - name: safety_output
+        server: regex
+        input: false
+        output: true
+        detector_params:
+          regex:
+            - email
+            - credit-card
+            - "\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}"
+            - "\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}"
+
+    routes:
+      # /pii — PII detection only
+      - name: pii
+        detectors:
+          - pii_input
+          - pii_output
+
+      # /safety — full regex pipeline (PII + injection + secrets)
+      - name: safety
+        detectors:
+          - safety_input
+          - safety_output
+
+      # /injection — prompt injection only
+      - name: injection
+        detectors:
+          - injection_input
+
+      # /secrets — API key / secret detection only
+      - name: secrets
+        detectors:
+          - secrets_input
+
+      # /passthrough — no detectors (baseline for latency comparison)
+      - name: passthrough
+        detectors:

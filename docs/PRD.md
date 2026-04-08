@@ -101,7 +101,7 @@ Deploy do agente como pod independente, antes do Coder, pra validar o core agent
 **Deliverable:** Claude Code respondendo prompts de coding usando modelo local (vLLM).
 
 **Tasks:**
-- Criar container image base: `node:20-slim` + Claude Code CLI (`npm install -g @anthropic-ai/claude-code`)
+- Criar container image base: UBI9 nodejs-22 + Claude Code CLI (via install script oficial)
 - Deploy pod standalone no namespace `agent-sandboxes`
 - Configurar env vars: `ANTHROPIC_BASE_URL` apontando pro vLLM
 - Criar ConfigMap `claude-code-config` com env vars do agente (reusavel pelo Coder na Fase 3)

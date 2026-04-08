@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchestrator-config
+  namespace: inference
+  labels:
+    app.kubernetes.io/part-of: agentops
+data:
+  config.yaml: |
+    openai:
+      service:
+        hostname: qwen25-14b-predictor.inference.svc.cluster.local
+        port: 8080
+    detectors:
+      regex:
+        type: text_contents
+        service:
+          hostname: "127.0.0.1"
+          port: 8080
+        chunker_id: whole_doc_chunker
+        default_threshold: 0.5
+    chunkers:
+      whole_doc_chunker:
+        type: sentence
+        service:
+          hostname: "127.0.0.1"
+          port: 8085
+    passthrough_headers:
+      - Authorization
+      - Content-Type

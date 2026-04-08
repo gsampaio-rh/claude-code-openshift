@@ -1,0 +1,20 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: sandboxed-containers-operator
+  namespace: openshift-sandboxed-containers-operator
+spec:
+  channel: stable
+  name: sandboxed-containers-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+---
+# KataConfig — enables Kata runtime on worker nodes
+# Apply AFTER the operator is ready (oc wait for csv)
+apiVersion: kataconfiguration.openshift.io/v1
+kind: KataConfig
+metadata:
+  name: cluster-kataconfig
+spec:
+  kataConfigPoolSelector: null

@@ -32,7 +32,7 @@ O Coder continua existindo como camada de UX para devs (Fase 3), mas o agente ro
 ## Deployment
 
 ```yaml
-# Pod standalone com Claude Code
+# Pod standalone com Claude Code (ver infra/claude-code/manifests/ para versao completa)
 apiVersion: v1
 kind: Pod
 metadata:
@@ -44,22 +44,24 @@ metadata:
 spec:
   containers:
   - name: claude-code
-    image: node:20-slim
-    command: ["sleep", "infinity"]
+    image: quay.io/agentops/claude-code-agent:latest
+    envFrom:
+    - configMapRef:
+        name: claude-code-config
     env:
-    - name: ANTHROPIC_BASE_URL
-      value: "http://vllm.inference.svc:8000/v1"
     - name: ANTHROPIC_API_KEY
-      value: "sk-placeholder"
-    - name: ANTHROPIC_DEFAULT_SONNET_MODEL
-      value: "Qwen/Qwen2.5-14B-Instruct"
-    - name: CLAUDE_CODE_MAX_OUTPUT_TOKENS
-      value: "4096"
-    - name: MAX_THINKING_TOKENS
-      value: "0"
+      value: "not-needed"
 ```
 
-Na Fase 1, aponta direto pro vLLM (sem Guardrails, que so vem na Fase 2). Na Fase 2+, muda `ANTHROPIC_BASE_URL` pra Guardrails endpoint.
+Env vars criticas (via ConfigMap `claude-code-config`):
+- `ANTHROPIC_BASE_URL` sem `/v1` — vLLM implementa a Anthropic Messages API
+- `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` — impede conexoes ao api.anthropic.com
+- `ANTHROPIC_AUTH_TOKEN` — obrigatorio (qualquer valor)
+- Model name deve ser o `--served-model-name` do vLLM, nao o HuggingFace ID
+
+Refs: [vLLM docs](https://docs.vllm.ai/en/latest/serving/integrations/claude_code/), [Issue #36998](https://github.com/anthropics/claude-code/issues/36998)
+
+Na Fase 1, aponta direto pro vLLM (sem Guardrails, que so vem na Fase 2). Na Fase 2+, muda `ANTHROPIC_BASE_URL` pra Guardrails gateway endpoint.
 
 ## Dois modos de operacao
 
@@ -70,14 +72,14 @@ Na Fase 1, aponta direto pro vLLM (sem Guardrails, que so vem na Fase 2). Na Fas
 
 ## Trade-offs
 
-- **Pod adicional a manter**: mais um deployment. Mitigacao: eh um pod simples com Node.js + npm, sem state.
+- **Pod adicional a manter**: mais um deployment. Mitigacao: eh um pod simples com imagem UBI + Claude Code, sem state.
 - **Env vars duplicadas**: standalone e Coder template tem env vars similares. Mitigacao: ConfigMap compartilhado.
 - **Sem UI na Fase 1**: dev interage via `oc exec` ou port-forward. Mitigacao: temporario — Coder chega na Fase 3.
 
 ## Consequences
 
 - Fase 1 do PRD inclui deploy e validacao do Claude Code standalone
-- Container image base (`node:20-slim` + `claude` CLI) precisa ser definida e testada
+- Container image base (UBI9 nodejs-22 + Claude Code CLI) buildada via `infra/claude-code/scripts/build-image.sh`
 - ConfigMap com env vars do agente criado no namespace `agent-sandboxes` (reusavel pelo Coder)
 - Criterio de aceitacao novo: Claude Code responde com modelo local antes do Coder existir
 - Arquitetura ganha uma "Agent Layer" explicita, separada da CDE Layer

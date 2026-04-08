@@ -1,0 +1,46 @@
+# ServiceAccount for Claude Code agents
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: claude-code-agent
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/part-of: agentops
+    kagenti.io/type: agent
+automountServiceAccountToken: false
+---
+# Minimal Role for agents — read-only access to own config
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: claude-code-agent
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/part-of: agentops
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+    resourceNames: ["claude-code-secrets"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: claude-code-agent
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/part-of: agentops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: claude-code-agent
+subjects:
+  - kind: ServiceAccount
+    name: claude-code-agent
+    namespace: agent-sandboxes

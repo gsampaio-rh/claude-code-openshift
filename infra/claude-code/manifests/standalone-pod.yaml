@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: claude-code-standalone
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/component: agent-standalone
+    app.kubernetes.io/part-of: agentops
+    kagenti.io/type: agent
+spec:
+  serviceAccountName: claude-code-agent
+  # Phase 4: uncomment to run inside Kata microVM
+  # runtimeClassName: kata
+  containers:
+    - name: claude-code
+      # Built from infra/claude-code/Dockerfile — override via CLAUDE_CODE_AGENT_IMAGE in .env
+      image: quay.io/agentops/claude-code-agent:latest
+      envFrom:
+        - configMapRef:
+            name: claude-code-config
+      env:
+        - name: ANTHROPIC_API_KEY
+          value: "not-needed"
+      resources:
+        requests:
+          cpu: "500m"
+          memory: 1Gi
+        limits:
+          cpu: "2"
+          memory: 4Gi
+      securityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+        capabilities:
+          drop: ["ALL"]
+  restartPolicy: Always

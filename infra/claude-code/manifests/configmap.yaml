@@ -1,0 +1,38 @@
+# Shared config consumed by both standalone pod and Coder workspace templates.
+#
+# Phase 1: ANTHROPIC_BASE_URL points to vLLM directly (no /v1 suffix).
+# Phase 2+: update to point to Guardrails gateway endpoint.
+#
+# Refs:
+#   - https://docs.vllm.ai/en/latest/serving/integrations/claude_code/
+#   - https://developers.redhat.com/articles/2026/03/26/integrate-claude-code-red-hat-ai-inference-server-openshift
+#   - https://github.com/anthropics/claude-code/issues/36998
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: claude-code-config
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/part-of: agentops
+data:
+  # vLLM implements Anthropic Messages API — no /v1 suffix needed
+  ANTHROPIC_BASE_URL: "http://qwen25-14b-predictor.inference.svc.cluster.local:8080"
+  # All model tiers point to the same served-model-name from vLLM
+  ANTHROPIC_DEFAULT_SONNET_MODEL: "qwen25-14b"
+  ANTHROPIC_DEFAULT_OPUS_MODEL: "qwen25-14b"
+  ANTHROPIC_DEFAULT_HAIKU_MODEL: "qwen25-14b"
+  # Required by vLLM integration (can be any value)
+  ANTHROPIC_AUTH_TOKEN: "not-needed"
+  # Prevents startup connections to api.anthropic.com (autoupdater, Sentry, Statsig)
+  # Without this, interactive mode fails in network-restricted pods (issue #36998)
+  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+  CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS: "1"
+  # Disables per-request hash in system prompt that defeats vLLM prefix caching
+  CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
+  # Token limits tuned for Qwen 14B context window
+  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "4096"
+  MAX_THINKING_TOKENS: "0"
+  # Phase 7: enable native OTEL (Claude Code has built-in support)
+  # CLAUDE_CODE_ENABLE_TELEMETRY: "1"
+  # OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc:4317"
