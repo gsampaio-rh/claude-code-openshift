@@ -110,9 +110,10 @@ infra/cluster/
 ```
 infra/vllm/
 ├── manifests/
+│   ├── pvc.yaml                     # PVC 30Gi gp3-csi para model cache (ADR-014)
 │   ├── deployment.yaml              # Deployment com upstream vLLM v0.19.0
 │   ├── service.yaml                 # ClusterIP Service porta 8080
-│   └── kustomization.yaml           # Referencia deployment + service
+│   └── kustomization.yaml           # pvc + deployment + service
 ├── scripts/
 │   ├── config.sh                    # Variaveis (imagem, modelo, namespace)
 │   ├── 00-setup-namespace.sh        # Namespace + quotas

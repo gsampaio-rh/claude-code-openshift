@@ -516,3 +516,4 @@ Ver [ADRs](../adrs/) para o racional de cada decisao.
 | ADR-011 | Upstream vLLM (nao RHAIIS) — Anthropic Messages API ausente no downstream |
 | ADR-012 | Plain Deployment+Service (nao KServe) — controle de imagem e probes |
 | ADR-013 | NetworkPolicy fixes para OVN-Kubernetes (DNS ClusterIP, build pods) |
+| ADR-014 | PVC para model cache (nao emptyDir) — restart sem re-download |

@@ -4,6 +4,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 MANIFESTS_DIR="$(cd "$SCRIPT_DIR/../manifests" && pwd)"
+DOCKERFILE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 if [[ -f "$PROJECT_ROOT/.env" ]]; then
   set -a
@@ -16,4 +17,6 @@ export NAMESPACE="${NAMESPACE_AGENT_SANDBOXES:-agent-sandboxes}"
 export NAMESPACE_INFERENCE="${NAMESPACE_INFERENCE:-inference}"
 export MODEL_NAME="${MODEL_NAME:-qwen25-14b}"
 export POD_NAME="claude-code-standalone"
-export CLAUDE_CODE_AGENT_IMAGE="${CLAUDE_CODE_AGENT_IMAGE:-quay.io/agentops/claude-code-agent:latest}"
+export BUILD_NAME="claude-code-agent"
+export CLAUDE_CODE_AGENT_IMAGE="${CLAUDE_CODE_AGENT_IMAGE:-image-registry.openshift-image-registry.svc:5000/${NAMESPACE}/${BUILD_NAME}:latest}"
+export VLLM_ENDPOINT="http://${MODEL_NAME}.${NAMESPACE_INFERENCE}.svc.cluster.local:8080"

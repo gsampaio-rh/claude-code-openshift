@@ -168,9 +168,49 @@ fi
 
 echo ""
 
-# ── 5. Security Context ─────────────────────────────────────
+# ── 5. Storage (PVC) ─────────────────────────────────────────
 
-echo "5. Security Context"
+echo "5. Storage"
+
+PVC_NAME="${MODEL_NAME}-model-cache"
+PVC_STATUS=$(oc get pvc "$PVC_NAME" -n "$NAMESPACE" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
+if [[ "$PVC_STATUS" == "Bound" ]]; then
+  PVC_CAP=$(oc get pvc "$PVC_NAME" -n "$NAMESPACE" -o jsonpath='{.status.capacity.storage}' 2>/dev/null)
+  pass "PVC '$PVC_NAME' is Bound ($PVC_CAP)"
+else
+  warn "PVC '$PVC_NAME' status: ${PVC_STATUS:-not found} (model will re-download on restart)"
+fi
+
+MODEL_SIZE=$(exec_curl "$POD_NAME" -- du -sh /mnt/models/ 2>/dev/null | awk '{print $1}' || echo "")
+if [[ -n "$MODEL_SIZE" ]]; then
+  pass "Model cache size: $MODEL_SIZE"
+else
+  warn "Could not determine model cache size"
+fi
+
+echo ""
+
+# ── 6. NetworkPolicy ─────────────────────────────────────────
+
+echo "6. NetworkPolicy"
+
+if oc get networkpolicy inference-egress -n "$NAMESPACE" &>/dev/null; then
+  pass "Egress NetworkPolicy exists for inference namespace"
+else
+  warn "No egress NetworkPolicy for inference namespace (unrestricted egress)"
+fi
+
+if oc get networkpolicy inference-allow-ingress -n "$NAMESPACE" &>/dev/null; then
+  pass "Ingress NetworkPolicy exists for inference namespace"
+else
+  warn "No ingress NetworkPolicy for inference namespace"
+fi
+
+echo ""
+
+# ── 7. Security Context ─────────────────────────────────────
+
+echo "7. Security Context"
 
 PRIV_ESC=$(oc get pod "$POD_NAME" -n "$NAMESPACE" \
   -o jsonpath='{.spec.containers[0].securityContext.allowPrivilegeEscalation}' 2>/dev/null)
