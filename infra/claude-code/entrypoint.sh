@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOG_DIR="${CLAUDE_LOG_DIR:-/tmp/claude-logs}"
+LOG_FILE="$LOG_DIR/claude.jsonl"
+mkdir -p "$LOG_DIR"
+touch "$LOG_FILE"
+
+echo "============================================================"
+echo " Claude Code Agent — Standalone Pod"
+echo "============================================================"
+echo ""
+echo "  Version:    $(claude --version 2>/dev/null || echo 'not found')"
+echo "  Base URL:   ${ANTHROPIC_BASE_URL:-not set}"
+echo "  Model:      ${ANTHROPIC_DEFAULT_SONNET_MODEL:-not set}"
+echo "  Max Output: ${CLAUDE_CODE_MAX_OUTPUT_TOKENS:-default}"
+echo "  Log Dir:    $LOG_DIR"
+echo "  Started:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+echo ""
+echo "  Usage:"
+echo "    oc exec -it <pod> -- claude              # interactive"
+echo "    oc exec <pod> -- claude -p 'prompt'      # headless"
+echo "    oc exec <pod> -- claude-logged 'prompt'  # headless + logs to oc logs"
+echo ""
+echo "  Logs stream below (from claude-logged invocations):"
+echo "------------------------------------------------------------"
+
+tail -F "$LOG_FILE" &
+TAIL_PID=$!
+trap "kill $TAIL_PID 2>/dev/null" EXIT
+
+exec sleep infinity

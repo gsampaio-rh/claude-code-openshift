@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Wrapper that runs claude -p and tees structured output to a log file.
+# Logs appear in `oc logs` via the entrypoint's tail -F.
+#
+# Usage:
+#   claude-logged "Write a fibonacci function in Python"
+#   claude-logged --resume <session-id> "Continue from here"
+set -euo pipefail
+
+LOG_DIR="${CLAUDE_LOG_DIR:-/tmp/claude-logs}"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="$LOG_DIR/claude.jsonl"
+
+claude -p --verbose --output-format stream-json "$@" | tee -a "$LOG_FILE"
