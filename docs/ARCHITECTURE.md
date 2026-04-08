@@ -11,14 +11,21 @@
 A plataforma AgentOps roda AI coding agents (Claude Code) no OpenShift com isolamento, identidade, governanca, observabilidade e safety — sem modificar o codigo do agente (principio BYOA).
 
 ```
-Developer --> Coder (CDE) --> Kata VM (agente) --> MCP Gateway (tools)
-                                    |                    |
-                                    v                    v
-                              Guardrails --> vLLM    AuthPolicy
-                                    |
-                                    v
-                              OTEL --> MLflow
+                    ┌─────────────────────────────────────────────┐
+                    │              OpenShift Cluster               │
+                    │                                             │
+Developer ──┬──> Coder (CDE) ──> Kata VM (agente) ──> MCP Gateway│
+            │                         │                    │      │
+            │                         v                    v      │
+            │                   Guardrails ──> vLLM    AuthPolicy │
+            │                         │                           │
+            └──> Claude Code ─────────┘                           │
+                 (standalone)         v                           │
+                                OTEL ──> MLflow                   │
+                    └─────────────────────────────────────────────┘
 ```
+
+Claude Code pode rodar em dois modos: **standalone** (pod direto, headless/interativo via `oc exec`) ou **CDE-embedded** (dentro de workspace Coder). O standalone sobe primeiro (Fase 1) pra validar o core agente+modelo antes de montar o CDE.
 
 ## 2. Diagrama de arquitetura
 
@@ -27,9 +34,14 @@ flowchart TB
     subgraph devs [Desenvolvedores]
         DevBrowser[Browser - Coder UI]
         DevTerminal[Terminal - claude CLI]
+        DevExec["oc exec / port-forward"]
     end
 
     subgraph ocp [OpenShift Cluster]
+
+        subgraph agent [Agent Layer]
+            StandalonePod["Claude Code Standalone<br>(Pod direto)"]
+        end
 
         subgraph cde [CDE Layer]
             CoderCP[Coder Control Plane]
@@ -100,11 +112,17 @@ flowchart TB
 
     DevBrowser --> CoderCP
     DevTerminal -->|SSH| KataVM1
+    DevExec -->|"oc exec"| StandalonePod
+
+    StandalonePod -->|"ANTHROPIC_BASE_URL"| vLLMServ
+    StandalonePod -.->|"migra pra Kata na Fase 4"| KataVM1
+
     CoderCP -->|"provisiona workspace"| KataVM1
     CoderCP -->|"provisiona workspace"| KataVM2
 
     Kagenti -.->|"injeta sidecars"| KataVM1
     Kagenti -.->|"injeta sidecars"| KataVM2
+    Kagenti -.->|"injeta sidecars"| StandalonePod
 
     KataVM1 -->|"ANTHROPIC_BASE_URL"| GuardrailsOrch
     KataVM1 -->|"MCP_URL"| MCPGateway
@@ -112,6 +130,54 @@ flowchart TB
 ```
 
 ## 3. Camadas da arquitetura
+
+### 3.0 Agent Layer (Claude Code)
+
+**Responsabilidade:** Executar o agente de codificacao. Funciona independente do CDE.
+
+| Componente | Tecnologia | Namespace |
+|---|---|---|
+| Runtime | Node.js 20 + Claude Code CLI | `agent-sandboxes` |
+| Modo standalone | Pod direto (`oc exec` / headless API) | `agent-sandboxes` |
+| Modo CDE | Embarcado no Coder workspace template | `agent-sandboxes` |
+| Config | ConfigMap compartilhado (env vars do agente) | `agent-sandboxes` |
+
+**Dois modos de operacao:**
+
+| Modo | Disponivel | Surface | Use case |
+|---|---|---|---|
+| **Standalone** | Fase 1 | `oc exec`, headless API, port-forward | Validacao core, automacao, CI/CD |
+| **CDE-embedded** | Fase 3 | Coder workspace (VS Code / terminal) | Dev interativo |
+
+**Standalone deploy (Fase 1):**
+1. Pod simples com `node:20-slim` + `claude` CLI instalado via npm
+2. `ANTHROPIC_BASE_URL` aponta direto pro vLLM (sem Guardrails ainda)
+3. Dev interage via `oc exec -it` ou `kubectl port-forward`
+4. Valida: agente conversa com modelo local, responde prompts de coding
+
+**Evolucao ao longo das fases:**
+- **Fase 1:** Standalone → vLLM direto
+- **Fase 2:** Standalone → Guardrails → vLLM
+- **Fase 3:** Coder workspace herda mesma config via ConfigMap
+- **Fase 4:** Ambos migram pra Kata (`runtimeClassName: kata`)
+- **Fase 5+:** SPIFFE identity, MCP Gateway, OTEL
+
+**ConfigMap compartilhado** (reusado por standalone e Coder templates):
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: claude-code-config
+  namespace: agent-sandboxes
+data:
+  ANTHROPIC_BASE_URL: "http://vllm.inference.svc:8000/v1"
+  ANTHROPIC_DEFAULT_SONNET_MODEL: "Qwen/Qwen2.5-14B-Instruct"
+  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "4096"
+  MAX_THINKING_TOKENS: "0"
+```
+
+> Ver [ADR-008](../adrs/008-claude-code-standalone-deploy.md) para o racional desta decisao.
 
 ### 3.1 CDE Layer (Coder)
 
@@ -388,17 +454,19 @@ flowchart TB
 | `cicd` | `inference` | 8080 | HTTPS (Garak scan) |
 | **DENY** | `agent-sandboxes` --> qualquer outro | * | * |
 
-## 5. Env vars do agente (configuradas via Coder template)
+## 5. Env vars do agente
 
-| Variavel | Valor | Proposito |
-|---|---|---|
-| `ANTHROPIC_BASE_URL` | `http://guardrails.inference.svc:8080` | Aponta pro Guardrails (nao vLLM direto) |
-| `ANTHROPIC_API_KEY` | Injetado via SPIFFE token exchange | Identidade do agente |
-| `ANTHROPIC_DEFAULT_SONNET_MODEL` | `qwen-coder` | Modelo no vLLM |
-| `MCP_URL` | `https://mcp-gateway.mcp-gateway.svc:8443` | Endpoint unico de tools |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector.observability.svc:4317` | Traces |
-| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `4096` | Limite de output |
-| `MAX_THINKING_TOKENS` | `0` | Desabilitado para Qwen |
+Configuradas via ConfigMap `claude-code-config` no namespace `agent-sandboxes`. Consumidas tanto pelo pod standalone quanto pelos Coder workspace templates.
+
+| Variavel | Fase 1 (standalone) | Fase 2+ (com Guardrails) | Proposito |
+|---|---|---|---|
+| `ANTHROPIC_BASE_URL` | `http://vllm.inference.svc:8000/v1` | `http://guardrails.inference.svc:8080` | Endpoint de inferencia |
+| `ANTHROPIC_API_KEY` | `sk-placeholder` | Injetado via SPIFFE token exchange | Identidade do agente |
+| `ANTHROPIC_DEFAULT_SONNET_MODEL` | `Qwen/Qwen2.5-14B-Instruct` | `Qwen/Qwen2.5-14B-Instruct` | Modelo no vLLM |
+| `MCP_URL` | N/A | `https://mcp-gateway.mcp-gateway.svc:8443` | Endpoint unico de tools |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | N/A | `http://otel-collector.observability.svc:4317` | Traces |
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `4096` | `4096` | Limite de output |
+| `MAX_THINKING_TOKENS` | `0` | `0` | Desabilitado para Qwen |
 
 ## 6. Decisoes arquiteturais
 
@@ -413,3 +481,4 @@ Ver [ADRs](../adrs/) para o racional de cada decisao.
 | ADR-005 | TrustyAI como proxy entre agente e modelo |
 | ADR-006 | SPIFFE/Kagenti para identidade (nao API keys) |
 | ADR-007 | Garak em pipeline Tekton (nao scan manual) |
+| ADR-008 | Claude Code standalone antes do Coder (fail fast) |

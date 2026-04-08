@@ -94,6 +94,25 @@ Subir o modelo Qwen 2.5 14B no cluster.
 - Q8: ~15GB VRAM (A10G, RTX 4090)
 - Q5_K_M: ~11GB VRAM (RTX 4060 Ti 16GB)
 
+### Fase 1a — Claude Code standalone (semana 1-2)
+
+Deploy do agente como pod independente, antes do Coder, pra validar o core agente+modelo.
+
+**Deliverable:** Claude Code respondendo prompts de coding usando modelo local (vLLM).
+
+**Tasks:**
+- Criar container image base: `node:20-slim` + Claude Code CLI (`npm install -g @anthropic-ai/claude-code`)
+- Deploy pod standalone no namespace `agent-sandboxes`
+- Configurar env vars: `ANTHROPIC_BASE_URL` apontando pro vLLM
+- Criar ConfigMap `claude-code-config` com env vars do agente (reusavel pelo Coder na Fase 3)
+- Validar: `oc exec` no pod, rodar `claude --headless` com prompt de coding
+- Medir qualidade de resposta do Qwen pra coding tasks (go/no-go pra resto do PoC)
+- Medir latencia end-to-end (prompt → resposta completa)
+
+**Criterio go/no-go:** Se Qwen 2.5 14B nao produz codigo funcional em prompts basicos (funcoes simples, bug fixes, testes), escalar pra modelo maior ou quantizacao diferente antes de continuar.
+
+> Ver [ADR-008](adrs/008-claude-code-standalone-deploy.md)
+
 ### Fase 2 — Safety na boundary de inferencia (semana 2)
 
 Colocar guardrails entre os agentes e o modelo.
@@ -230,6 +249,7 @@ Adicionar Dev Spaces como CDE alternativo.
 
 | # | Criterio | Fase |
 |---|---|---|
+| AC-0 | Claude Code standalone responde prompts de coding com modelo local (sem Coder) | 1a |
 | AC-1 | Dev cria workspace no Coder, abre VS Code, Claude Code funciona com modelo local | 3 |
 | AC-2 | Workspace roda em Kata VM (uname -r diferente do host) | 4 |
 | AC-3 | Agente tem SPIFFE identity (SVID no filesystem do pod) | 5 |
@@ -245,7 +265,7 @@ Adicionar Dev Spaces como CDE alternativo.
 |---|---|---|---|
 | Kata precisa de bare metal ou nested virt | Bloqueante | Media | Validar na Fase 0; fallback para gVisor |
 | Kagenti e MCP Gateway sao alpha/TP | Breaking changes | Alta | Pintar versoes; manter fork se necessario |
-| Qwen 2.5 14B insuficiente para coding | Qualidade baixa | Media | Testar com prompts reais na Fase 1; escalar modelo |
+| Qwen 2.5 14B insuficiente para coding | Qualidade baixa | Media | Testar com prompts reais na Fase 1a (standalone); go/no-go antes de montar o resto |
 | VRAM insuficiente | Nao roda modelo | Baixa | Qwen 7B ou quantizacao agressiva |
 | Coder SCC conflicts no OpenShift | Bloqueia CDE | Media | Seguir doc oficial; testar com restricted-v2 |
 | TrustyAI/NeMo adicionam latencia | UX degradada | Baixa | Medir latencia na Fase 2; ajustar detectors |
@@ -263,6 +283,7 @@ Adicionar Dev Spaces como CDE alternativo.
 
 | Metrica | Target |
 |---|---|
+| Tempo de setup do agente standalone (pod + claude ready) | < 1 min |
 | Tempo de setup de workspace (Coder + Claude Code) | < 2 min |
 | Latencia de inferencia (prompt simples) | < 5s |
 | % de prompts com PII detectados pelo TrustyAI | > 95% |
