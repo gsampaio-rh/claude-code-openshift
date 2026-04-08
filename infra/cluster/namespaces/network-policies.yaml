@@ -1,4 +1,12 @@
-# Agent sandboxes: only allow egress to inference, mcp-gateway, observability, DNS
+# Agent sandboxes: egress rules for agent and build pods
+#
+# Learned in Sprint 1:
+# - DNS via namespaceSelector alone doesn't work with OVN-Kubernetes when
+#   CoreDNS ClusterIP (172.30.0.10) falls in the excluded private range.
+#   Fix: allow all traffic to the cluster Service CIDR (172.30.0.0/16).
+# - Build pods need broad egress to pull base images and push to internal registry.
+# - Agent pods need access to inference namespace (vLLM) on port 8080.
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -7,11 +15,15 @@ metadata:
   labels:
     app.kubernetes.io/part-of: agentops
 spec:
-  podSelector: {}
+  podSelector:
+    matchExpressions:
+      - key: openshift.io/build.name
+        operator: DoesNotExist
   policyTypes:
     - Egress
   egress:
-    # DNS
+    # DNS — OpenShift CoreDNS listens on 5353 (svc maps 53→5353).
+    # OVN-K evaluates ports post-DNAT, so we need both 53 and 5353.
     - to:
         - namespaceSelector: {}
       ports:
@@ -19,7 +31,20 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
-    # Inference (Guardrails / vLLM)
+        - port: 5353
+          protocol: UDP
+        - port: 5353
+          protocol: TCP
+    # K8s API server — pod network CIDR for API server access
+    - to:
+        - ipBlock:
+            cidr: 172.30.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 6443
+          protocol: TCP
+    # Inference (vLLM / Guardrails)
     - to:
         - namespaceSelector:
             matchLabels:
@@ -58,6 +83,24 @@ spec:
       ports:
         - port: 443
           protocol: TCP
+---
+# Build pods need unrestricted egress to pull base images and push to internal registry
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-sandboxes-builds-egress
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/part-of: agentops
+spec:
+  podSelector:
+    matchExpressions:
+      - key: openshift.io/build.name
+        operator: Exists
+  policyTypes:
+    - Egress
+  egress:
+    - {}
 ---
 # Inference namespace: allow ingress from agent-sandboxes and cicd
 apiVersion: networking.k8s.io/v1

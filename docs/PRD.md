@@ -84,10 +84,10 @@ Subir o modelo Qwen 2.5 14B no cluster.
 **Deliverable:** Endpoint `/v1/messages` respondendo no cluster.
 
 **Tasks:**
-- Deploy vLLM via Helm chart rhai-helm
-- Configurar Qwen/Qwen2.5-14B-Instruct (FP16 se GPU >= 28GB, Q8 se >= 16GB, Q5 se >= 12GB)
-- Validar endpoint com curl direto no pod
-- Criar Service + Route interna (nao expor externamente)
+- Deploy upstream vLLM v0.19.0 como Deployment+Service (ADR-011, ADR-012)
+- Configurar Qwen/Qwen2.5-14B-Instruct-FP8-dynamic (FP8 pra L4/A10G, FP16 se GPU >= 28GB)
+- Validar `/v1/messages` (Anthropic API) e `/v1/chat/completions` (OpenAI API) via `02-validate-model.sh`
+- Criar Service ClusterIP (nao expor externamente)
 
 **Requisitos de GPU:**
 - FP16: ~28GB VRAM (A100/H100)

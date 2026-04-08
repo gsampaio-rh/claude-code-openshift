@@ -9,7 +9,7 @@ data:
   config.yaml: |
     openai:
       service:
-        hostname: qwen25-14b-predictor.inference.svc.cluster.local
+        hostname: qwen25-14b.inference.svc.cluster.local
         port: 8080
     detectors:
       regex:

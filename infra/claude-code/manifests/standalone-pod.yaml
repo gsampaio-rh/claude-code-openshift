@@ -14,8 +14,8 @@ spec:
   # runtimeClassName: kata
   containers:
     - name: claude-code
-      # Built from infra/claude-code/Dockerfile — override via CLAUDE_CODE_AGENT_IMAGE in .env
-      image: quay.io/agentops/claude-code-agent:latest
+      # Built via: oc start-build claude-code-agent --from-dir=infra/claude-code -n agent-sandboxes
+      image: image-registry.openshift-image-registry.svc:5000/agent-sandboxes/claude-code-agent:latest
       envFrom:
         - configMapRef:
             name: claude-code-config
@@ -24,11 +24,11 @@ spec:
           value: "not-needed"
       resources:
         requests:
-          cpu: "500m"
-          memory: 1Gi
+          cpu: "100m"
+          memory: 256Mi
         limits:
-          cpu: "2"
-          memory: 4Gi
+          cpu: "1"
+          memory: 2Gi
       securityContext:
         allowPrivilegeEscalation: false
         runAsNonRoot: true

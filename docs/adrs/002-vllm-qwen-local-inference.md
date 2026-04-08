@@ -1,6 +1,6 @@
 # ADR-002: vLLM with Qwen 2.5 14B for Local Inference
 
-**Status:** Accepted
+**Status:** Accepted (updated: see ADR-011 for RHAIIS→upstream switch, ADR-012 for KServe→Deployment switch)
 **Date:** 2026-04-08
 **Deciders:** Platform Engineering
 
@@ -20,8 +20,8 @@ Use **vLLM** (via Red Hat AI Inference Server) serving **Qwen 2.5 14B Instruct**
 
 - **Zero API cost**: no per-token charges. All inference runs on owned hardware.
 - **Data stays on-prem**: prompts and responses never leave the cluster. Required for PoC validation of air-gapped feasibility.
-- **vLLM exposes Anthropic-compatible API**: Claude Code connects via `ANTHROPIC_BASE_URL` without code changes.
-- **Red Hat AI Inference Server is vLLM downstream**: supported, tested, has a Helm chart (`rhai-helm`).
+- **vLLM exposes Anthropic-compatible API**: Claude Code connects via `ANTHROPIC_BASE_URL` without code changes. Note: only upstream vLLM has `/v1/messages` — RHAIIS strips it (see ADR-011).
+- **Red Hat AI Inference Server is vLLM downstream**: supported, tested, but missing Anthropic Messages API. Switched to upstream `vllm/vllm-openai:v0.19.0` (ADR-011).
 - **Qwen 2.5 14B**: good balance of coding quality vs VRAM requirements. Runs on a single GPU with 12GB+ VRAM (quantized) or 28GB (FP16). Documented working with Claude Code in the Red Hat Developer article.
 
 ## Trade-offs
@@ -43,4 +43,5 @@ Use **vLLM** (via Red Hat AI Inference Server) serving **Qwen 2.5 14B Instruct**
 - NVIDIA GPU Operator and Node Feature Discovery must be installed
 - vLLM deployment requires a GPU node with sufficient VRAM
 - Claude Code env var `ANTHROPIC_BASE_URL` points to Guardrails (which proxies to vLLM), not directly to vLLM
-- Model download from Hugging Face requires HF_TOKEN and network access during setup
+- Model download from Hugging Face requires network access during setup (HF_TOKEN not needed for `RedHatAI/*` models)
+- Deployed as plain Deployment+Service (not KServe) — see ADR-012

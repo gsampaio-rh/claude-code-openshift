@@ -4,9 +4,9 @@ USER 0
 RUN dnf install -y git && dnf clean all
 
 USER 1001
-WORKDIR /home/default
 
 RUN curl -fsSL https://claude.ai/install.sh | bash
-ENV PATH="/home/default/.local/bin:$PATH"
+ENV PATH="/opt/app-root/src/.local/bin:$PATH"
 
+WORKDIR /opt/app-root/src
 CMD ["sleep", "infinity"]

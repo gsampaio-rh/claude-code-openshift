@@ -179,7 +179,7 @@ data:
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
   CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS: "1"
   CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
-  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "4096"
+  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "2048"
   MAX_THINKING_TOKENS: "0"
 ```
 
@@ -453,8 +453,10 @@ flowchart TB
 | `agent-sandboxes` | `inference` (Guardrails) | 8080 | HTTPS |
 | `agent-sandboxes` | `mcp-gateway` | 8443 | HTTPS |
 | `agent-sandboxes` | `observability` (OTEL) | 4317 | gRPC |
-| `agent-sandboxes` | `kube-dns` | 53 | UDP |
+| `agent-sandboxes` | `kube-dns` (openshift-dns) | 53, 5353 | UDP/TCP (ADR-013: CoreDNS escuta em 5353, OVN-K avalia post-DNAT) |
+| `agent-sandboxes` | K8s API server | 443, 6443 | TCP (service account auth) |
 | `agent-sandboxes` | Internet (GitHub, npm) | 443 | HTTPS (egress controlado) |
+| `agent-sandboxes` (build pods) | Qualquer destino | * | Unrestricted (short-lived, pull images + push registry) |
 | `coder` | `agent-sandboxes` | * | Provisioning |
 | `agentops` | `agent-sandboxes` | * | Sidecar injection |
 | `cicd` | `inference` | 8080 | HTTPS (Garak scan) |
@@ -468,7 +470,7 @@ Configuradas via ConfigMap `claude-code-config` no namespace `agent-sandboxes`. 
 
 | Variavel | Fase 1 (standalone) | Fase 2+ (com Guardrails) | Proposito |
 |---|---|---|---|
-| `ANTHROPIC_BASE_URL` | `http://qwen25-14b-predictor.inference.svc.cluster.local:8080` | `http://guardrails-orchestrator-gateway.inference.svc:8080` | Endpoint de inferencia (sem `/v1` — vLLM implementa Anthropic Messages API) |
+| `ANTHROPIC_BASE_URL` | `http://qwen25-14b.inference.svc.cluster.local:8080` | `http://guardrails-orchestrator-gateway.inference.svc:8080` | Endpoint de inferencia (sem `/v1` — upstream vLLM v0.19.0 implementa Anthropic Messages API; ADR-011, ADR-012) |
 | `ANTHROPIC_API_KEY` | `not-needed` | Injetado via SPIFFE token exchange | Identidade do agente (vLLM nao requer auth por padrao) |
 | `ANTHROPIC_AUTH_TOKEN` | `not-needed` | Token SPIFFE | Header `Authorization: Bearer` (obrigatorio) |
 | `ANTHROPIC_DEFAULT_SONNET_MODEL` | `qwen25-14b` | `qwen25-14b` | Deve ser o `--served-model-name` do vLLM, nao o HF ID |
@@ -477,7 +479,7 @@ Configuradas via ConfigMap `claude-code-config` no namespace `agent-sandboxes`. 
 | `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `1` | `1` | Impede conexoes de startup ao api.anthropic.com (issue #36998) |
 | `CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS` | `1` | `1` | Evita falha no modo interativo em pods sem internet |
 | `CLAUDE_CODE_ATTRIBUTION_HEADER` | `0` | `0` | Desabilita hash por-request que quebra prefix caching no vLLM |
-| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `4096` | `4096` | Limite de output (ajustar conforme VRAM) |
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `2048` | `2048` | System prompt do Claude Code consome ~12K tokens; 2048 output cabe no context de 24K |
 | `MAX_THINKING_TOKENS` | `0` | `0` | Desabilitado para Qwen |
 | `CLAUDE_CODE_ENABLE_TELEMETRY` | N/A | `1` | Habilita OTEL nativo do Claude Code |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | N/A | `http://otel-collector.observability.svc:4317` | Traces |
@@ -498,3 +500,6 @@ Ver [ADRs](../adrs/) para o racional de cada decisao.
 | ADR-008 | Claude Code standalone antes do Coder (fail fast) |
 | ADR-009 | UBI base image para agente (nao node:slim community) |
 | ADR-010 | Estrutura `infra/` para manifests e scripts |
+| ADR-011 | Upstream vLLM (nao RHAIIS) — Anthropic Messages API ausente no downstream |
+| ADR-012 | Plain Deployment+Service (nao KServe) — controle de imagem e probes |
+| ADR-013 | NetworkPolicy fixes para OVN-Kubernetes (DNS ClusterIP, build pods) |

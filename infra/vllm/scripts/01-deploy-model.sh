@@ -9,6 +9,7 @@ echo " vLLM | Step 1: Deploy $MODEL_NAME"
 echo "============================================================"
 echo ""
 echo "  Model:     $MODEL_HF_URI"
+echo "  Image:     $VLLM_IMAGE"
 echo "  Namespace: $NAMESPACE"
 echo "  Context:   $MAX_MODEL_LEN tokens"
 echo "  GPU:       ${GPU_COUNT}x"
@@ -18,21 +19,25 @@ echo "── Applying manifests ──"
 oc apply -k "$MANIFESTS_DIR"
 echo ""
 
-echo "── Waiting for InferenceService to be ready (timeout: $MODEL_READY_TIMEOUT) ──"
-echo "  First boot downloads the model from HuggingFace (~3-5 min)."
+echo "── Waiting for Deployment rollout (timeout: $MODEL_READY_TIMEOUT) ──"
+echo "  First boot pulls the image + downloads the model from HuggingFace (~5-10 min)."
 echo ""
 
+oc rollout status "deployment/$MODEL_NAME" \
+  -n "$NAMESPACE" \
+  --timeout="$MODEL_READY_TIMEOUT"
+
+echo ""
+echo "── Waiting for pod readiness ──"
 oc wait --for=condition=Ready \
-  "inferenceservice/$MODEL_NAME" \
+  "pod" -l "app.kubernetes.io/name=$MODEL_NAME" \
   -n "$NAMESPACE" \
   --timeout="$MODEL_READY_TIMEOUT"
 
 echo ""
 echo "Model serving is ready."
 echo ""
-
-ENDPOINT="http://${MODEL_NAME}-predictor.${NAMESPACE}.svc.cluster.local:8080/v1"
-echo "  Internal endpoint: $ENDPOINT"
+echo "  Internal endpoint: $VLLM_ENDPOINT"
 echo ""
-echo "Next: verify the deployment:"
-echo "  ./99-verify.sh"
+echo "Next: validate the deployment:"
+echo "  ./02-validate-model.sh"

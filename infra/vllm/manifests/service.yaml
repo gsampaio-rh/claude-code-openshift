@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen25-14b
+  namespace: inference
+  labels:
+    app.kubernetes.io/name: qwen25-14b
+    app.kubernetes.io/component: model-serving
+    app.kubernetes.io/part-of: agentops
+spec:
+  selector:
+    app.kubernetes.io/name: qwen25-14b
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  type: ClusterIP
