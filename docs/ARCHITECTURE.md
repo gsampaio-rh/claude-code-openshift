@@ -155,6 +155,16 @@ flowchart TB
 3. Dev interage via `oc exec -it` ou `kubectl port-forward`
 4. Valida: agente conversa com modelo local, responde prompts de coding
 
+**Logging (ADR-015):**
+
+| Comando | Formato | Aparece no `oc logs` |
+|---|---|---|
+| `claude` | TUI interativo | Nao |
+| `claude -p "..."` | Texto pro caller | Nao |
+| `claude-logged "..."` | NDJSON (stream-json) pro caller + `oc logs` | Sim |
+
+O entrypoint (`entrypoint.sh`) loga banner de startup no stdout e faz `tail -F` de `/tmp/claude-logs/claude.jsonl`. O wrapper `claude-logged` roda `claude -p --verbose --output-format stream-json` e tee-ia o output pro log file. Cada linha NDJSON contem `session_id`, `input_tokens`, `output_tokens`, `duration_ms`, `model`, `tools`.
+
 **Evolucao ao longo das fases:**
 - **Fase 1:** Standalone → vLLM direto
 - **Fase 2:** Standalone → Guardrails → vLLM
@@ -517,3 +527,4 @@ Ver [ADRs](../adrs/) para o racional de cada decisao.
 | ADR-012 | Plain Deployment+Service (nao KServe) — controle de imagem e probes |
 | ADR-013 | NetworkPolicy fixes para OVN-Kubernetes (DNS ClusterIP, build pods) |
 | ADR-014 | PVC para model cache (nao emptyDir) — restart sem re-download |
+| ADR-015 | Structured logging via entrypoint + claude-logged wrapper (NDJSON) |

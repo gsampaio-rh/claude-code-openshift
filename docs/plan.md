@@ -152,7 +152,9 @@ infra/claude-code/
 │   ├── configmap.yaml               # ConfigMap claude-code-config
 │   └── standalone-pod.yaml          # Pod standalone
 ├── scripts/                         # build, deploy, verify, cleanup
-└── Dockerfile                       # Image base (UBI9 nodejs-22 + Claude Code CLI)
+├── entrypoint.sh                    # Startup banner + tail logs to stdout (ADR-015)
+├── claude-logged                    # Wrapper: claude -p --verbose --output-format stream-json
+└── Dockerfile                       # UBI9 nodejs-22 + Claude Code CLI + entrypoint
 ```
 
 **DECISAO: Go/No-Go do modelo**
