@@ -573,6 +573,104 @@ docs/
 
 ---
 
+## Pos-PoC — Agent Orchestration Governance (Fase 10)
+
+> **Meta:** Investigar ferramentas de orquestracao multi-agente e definir camada de governanca para coordenar multiplos agentes em escala.
+>
+> **Referencia:** [Gastown](https://github.com/steveyegge/gastown) | [Multica](https://github.com/multica-ai/multica)
+
+### 10.1 Research e Avaliacao
+
+- [ ] Deploy local do [Gastown](https://github.com/steveyegge/gastown) (Go, multi-agent workspace manager, 13.8k stars)
+  - Mayor (coordenador AI), Polecats (worker agents), Convoys (work tracking)
+  - Hooks (git worktree persistence), Refinery (merge queue), OTEL telemetry
+- [ ] Deploy local do [Multica](https://github.com/multica-ai/multica) (Next.js + Go + PostgreSQL, managed agents platform, 4.2k stars)
+  - Agents as teammates (board/assignment), reusable skills, CLI daemon
+- [ ] Testar ambos com Claude Code + vLLM local
+- [ ] Avaliar contra requisitos AgentOps:
+  - Compatibilidade com OpenShift (SCC, NetworkPolicy, rootless)
+  - Integracao com Kata (runtimeClassName por agent)
+  - Integracao com SPIFFE/Kagenti (identidade por agente)
+  - Integracao com OTEL/MLflow (traces multi-agente)
+  - Compatibilidade com TrustyAI (guardrails por request, nao por agente)
+- [ ] Comparar modelos de orquestracao:
+  - Gastown: Mayor/convoy (AI coordinator, git-backed state, merge queue)
+  - Multica: Board/assignment (human-driven, skills reuse, WebSocket streaming)
+- [ ] Documentar findings em ADR (ADR-019 ou proximo)
+
+### 10.2 Orquestracao PoC no OpenShift
+
+- [ ] Containerizar ferramenta selecionada (ou hibrida) com UBI base image
+- [ ] Adaptar pra SCC `restricted-v2` (rootless, read-only rootfs)
+- [ ] Deploy no namespace `agentops`
+- [ ] Integrar com stack existente:
+  - vLLM (inference endpoint)
+  - Kata (cada agente em microVM isolada)
+  - MCP Gateway (tools governadas por identidade)
+  - OTEL Collector → MLflow (traces por agente)
+- [ ] Testar workflows multi-agente:
+  - Execucao paralela de tasks (2-5 agentes simultaneos)
+  - Distribuicao de trabalho (round-robin, skill-based, priority)
+  - Resolucao de conflitos (merge queue, lock de arquivos)
+- [ ] Validar health monitoring em escala (5-10 agentes concorrentes)
+- [ ] Medir overhead de orquestracao (latencia, resource usage)
+
+**Artefatos:**
+
+```
+orchestration/
+├── manifests/
+│   ├── deployment.yaml              # Orchestrator deployment
+│   ├── service.yaml                 # ClusterIP service
+│   ├── configmap.yaml               # Orchestrator config
+│   └── pvc.yaml                     # State storage (se necessario)
+├── scripts/
+│   ├── 00-prerequisites.sh          # Dependency check
+│   ├── 01-deploy.sh                 # Deploy orchestrator
+│   └── 99-verify.sh                 # Validation
+└── policies/
+    ├── capacity.yaml                # Agent capacity limits
+    ├── assignment.yaml              # Work assignment rules
+    └── escalation.yaml              # Escalation policies
+```
+
+### 10.3 Camada de Governanca
+
+- [ ] Definir policies de capacidade:
+  - Max agentes concorrentes por namespace
+  - Resource quotas por agente (CPU, memory, GPU time-share)
+  - Scheduling: rate limiting de requests ao vLLM
+- [ ] Definir regras de atribuicao de trabalho:
+  - Role-based: junior agents (read-only tools) vs senior agents (write + PR)
+  - Skill-based: agent specialization por linguagem/framework
+  - Priority queues: critical fixes > features > chores
+- [ ] Definir politicas de escalacao:
+  - Human-in-the-loop gates (PR review, deploy approval)
+  - Timeout-based escalation (agent stuck > N minutos)
+  - Severity routing (P0 → human, P1 → senior agent, P2 → queue)
+- [ ] Implementar audit trail:
+  - Quem atribuiu o que a qual agente
+  - Resultado de cada task (success/fail/escalated)
+  - Tempo de execucao, tokens consumidos, tools usadas
+  - Integracao com MLflow experiments
+- [ ] Integrar com Kagenti identity:
+  - SPIFFE SVID por instancia de agente
+  - Token exchange com claims de role/skill
+  - MCP Gateway policies por agente (nao so por role)
+
+### Gate Pos-PoC — Orchestration
+
+| # | Criterio | Validacao |
+|---|---|---|
+| G10.1 | Ferramenta avaliada e ADR documentado | ADR com decision rationale |
+| G10.2 | Orchestrator rodando no OpenShift com 2+ agentes simultaneos | `oc get pods -n agentops` |
+| G10.3 | Agentes isolados em Kata com identidade SPIFFE individual | SVID unico por agente |
+| G10.4 | Work distribution funcional (task → agent → resultado) | E2E com 3+ tasks paralelas |
+| G10.5 | Policies de capacidade enforced (max agents, rate limit) | Teste de overflow |
+| G10.6 | Audit trail completo no MLflow | Traces com agent-id, task-id, outcome |
+
+---
+
 ## Estrutura de artefatos (repositorio)
 
 ```
@@ -612,6 +710,10 @@ claude-code-openshift/
 │   ├── otel/                        # OTEL Collector
 │   ├── mlflow/                      # MLflow Tracking Server
 │   └── dashboards/                  # Dashboard configs
+├── orchestration/
+│   ├── manifests/                   # Orchestrator deployment + config
+│   ├── scripts/                     # Deploy, verify
+│   └── policies/                    # Capacity, assignment, escalation
 └── cicd/
     └── tekton/                      # Tasks, Pipelines, Triggers
 ```
@@ -629,11 +731,13 @@ flowchart LR
     S2 --> S3[Sprint 3<br>Kata + Kagenti]
     S3 --> S4[Sprint 4<br>MCP Gateway]
     S4 --> S5[Sprint 5<br>CI/CD + E2E]
+    S5 --> PostPoC[Pos-PoC<br>Dev Spaces +<br>Agent Orchestration]
 
     S1 -->|"vLLM + agente validado"| S2
     S2 -->|"OTEL + Guardrails + Coder"| S3
     S3 -->|"SPIFFE tokens"| S4
     S4 -->|"Stack completa"| S5
+    S5 -->|"Stack validada E2E"| PostPoC
 ```
 
 **Dependencias criticas:**
@@ -642,6 +746,7 @@ flowchart LR
 - Sprint 3 depende do Coder funcional (Sprint 2) pra testar Kata nos workspaces
 - Sprint 4 depende dos tokens SPIFFE (Sprint 3) pra autenticar no MCP Gateway
 - Sprint 5 eh integracao — depende de tudo
+- Pos-PoC (Orchestration) depende da stack completa validada (Sprint 5) — multi-agente precisa de identity, guardrails, OTEL e MCP Gateway funcionais
 
 ---
 
@@ -659,3 +764,6 @@ flowchart LR
 | 3 | Kagenti alpha — breaking changes | Pintar versao; manter workaround manual |
 | 4 | MCP Gateway tech preview — instavel | Pintar versao; configuracao estatica como fallback |
 | 5 | Garak scan demora demais | Limitar probes; timeout na pipeline |
+| Pos-PoC | Gastown/Multica incompativel com OpenShift SCC | Testar rootless; adaptar Dockerfile com UBI base |
+| Pos-PoC | Resource contention com multiplos agentes (CPU, GPU, vLLM queue) | Scheduling policies; rate limiting no orchestrator |
+| Pos-PoC | Merge conflicts entre agentes trabalhando no mesmo repo | Merge queue (Refinery pattern); lock de arquivos; particionamento de tasks |
