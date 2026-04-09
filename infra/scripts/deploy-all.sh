@@ -14,6 +14,7 @@ Options:
   --skip-cluster    Skip cluster setup (namespaces, RBAC, quotas, operators)
   --skip-vllm       Skip vLLM deployment
   --skip-agent      Skip Claude Code agent build+deploy
+  --skip-guardrails Skip Guardrails (TrustyAI) deployment
   --skip-kata       Skip Kata installation+validation
   --skip-verify     Skip verification steps
   --dry-run         Print what would be executed without running
@@ -30,7 +31,10 @@ Steps executed (in order):
   8. Claude Code agent image build
   9. Claude Code agent deployment
   10. Claude Code verification
-  11. End-to-end test
+  11. Guardrails prerequisite check
+  12. Guardrails deployment
+  13. Guardrails verification
+  14. End-to-end test
 
 EOF
   exit 0
@@ -39,6 +43,7 @@ EOF
 SKIP_CLUSTER=false
 SKIP_VLLM=false
 SKIP_AGENT=false
+SKIP_GUARDRAILS=false
 SKIP_KATA=false
 SKIP_VERIFY=false
 DRY_RUN=false
@@ -48,6 +53,7 @@ for arg in "$@"; do
     --skip-cluster) SKIP_CLUSTER=true ;;
     --skip-vllm) SKIP_VLLM=true ;;
     --skip-agent) SKIP_AGENT=true ;;
+    --skip-guardrails) SKIP_GUARDRAILS=true ;;
     --skip-kata) SKIP_KATA=true ;;
     --skip-verify) SKIP_VERIFY=true ;;
     --dry-run) DRY_RUN=true ;;
@@ -172,6 +178,27 @@ else
   skip_step "Claude Code build"
   skip_step "Claude Code deploy"
   skip_step "Claude Code verification"
+fi
+
+# ── Guardrails ────────────────────────────────────────────────
+
+if [[ "$SKIP_GUARDRAILS" == "false" ]]; then
+  run_step "Guardrails prerequisite check" \
+    bash "$INFRA_DIR/guardrails/scripts/00-check-prerequisites.sh"
+
+  run_step "Guardrails deployment" \
+    bash "$INFRA_DIR/guardrails/scripts/01-deploy-guardrails.sh"
+
+  if [[ "$SKIP_VERIFY" == "false" ]]; then
+    run_step "Guardrails verification" \
+      bash "$INFRA_DIR/guardrails/scripts/99-verify.sh"
+  else
+    skip_step "Guardrails verification"
+  fi
+else
+  skip_step "Guardrails prerequisite check"
+  skip_step "Guardrails deployment"
+  skip_step "Guardrails verification"
 fi
 
 # ── E2E ──────────────────────────────────────────────────────

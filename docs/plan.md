@@ -2,7 +2,7 @@
 
 **Status:** Draft
 **Data:** 2026-04-08
-**Relacionado:** [PRD](prd.md) | [Arquitetura](architecture.md) | [ADRs](adrs/)
+**Relacionado:** [PRD](PRD.md) | [Arquitetura](ARCHITECTURE.md) | [ADRs](adrs/)
 
 ---
 
@@ -12,9 +12,9 @@
 
 ```
 Sprint 1 ████░░░░░░░░░░░░░░░░ Infra + vLLM + Claude Code standalone
-Sprint 2 ░░░░████░░░░░░░░░░░░ Safety + Coder
+Sprint 2 ░░░░████░░░░░░░░░░░░ Observability + Safety + Coder
 Sprint 3 ░░░░░░░░████░░░░░░░░ Kata + Kagenti
-Sprint 4 ░░░░░░░░░░░░████░░░░ MCP Gateway + Observability
+Sprint 4 ░░░░░░░░░░░░████░░░░ MCP Gateway
 Sprint 5 ░░░░░░░░░░░░░░░░████ CI/CD + Integracao end-to-end
 ```
 
@@ -187,11 +187,11 @@ Este eh o checkpoint mais importante do PoC. Se Claude Code + Qwen 2.5 14B nao p
 
 ---
 
-## Sprint 2 — Safety + CDE (Semana 2)
+## Sprint 2 — Observability + Safety + CDE (Semana 2)
 
-> **Meta:** Guardrails interceptando requests. Coder rodando com workspaces funcionais. Agente standalone migra pra Guardrails.
+> **Meta:** Traces de tudo no MLflow. Guardrails interceptando requests. Coder rodando com workspaces funcionais.
 >
-> **Fases PRD:** 2 + 3
+> **Fases PRD:** 7 + 2 + 3
 
 ### 2.0 Hardening Sprint 1 (carry-over)
 
@@ -247,7 +247,32 @@ Este eh o checkpoint mais importante do PoC. Se Claude Code + Qwen 2.5 14B nao p
 - `CLAUDE_CODE_MAX_OUTPUT_TOKENS=16384` estourava context por 1 token. Corrigido pra 8192.
 - Pod `qwen25-14b` em `UnexpectedAdmissionError`: residuo de rollout L4→L40S. Deletado manualmente.
 
-### 2.1 TrustyAI Guardrails (Fase 2)
+### 2.1 Observabilidade (Fase 7)
+
+- [ ] Deploy OTEL Collector no namespace `observability`
+- [ ] Configurar receiver OTLP (gRPC :4317, HTTP :4318)
+- [ ] Deploy MLflow Tracking Server com storage (PV ou S3)
+- [ ] Configurar OTEL exporter → MLflow
+- [ ] Configurar Claude Code: `OTEL_EXPORTER_OTLP_ENDPOINT`
+- [ ] Validar: traces aparecem no MLflow apos tool call
+- [ ] Criar dashboards basicos: tokens/hora, tool calls/agente, latencia
+
+**Artefatos:**
+
+```
+observability/
+├── otel/
+│   ├── collector.yaml               # OTEL Collector deployment + config
+│   └── service.yaml                 # Service ClusterIP
+├── mlflow/
+│   ├── deployment.yaml              # MLflow Tracking Server
+│   ├── pvc.yaml                     # Storage
+│   └── service.yaml
+└── dashboards/
+    └── agent-metrics.json           # Dashboard config (se aplicavel)
+```
+
+### 2.2 TrustyAI Guardrails (Fase 2)
 
 - [ ] Instalar Red Hat OpenShift AI Operator
 - [ ] Habilitar TrustyAI no DataScienceCluster (`managementState: Managed`)
@@ -268,7 +293,7 @@ infra/guardrails/
 ├── scripts/                         # check, deploy, verify
 ```
 
-### 2.2 NeMo Guardrails (Fase 2 — opcional, tech preview)
+### 2.3 NeMo Guardrails (Fase 2 — opcional, tech preview)
 
 - [ ] Deploy NeMo Guardrails no namespace `inference`
 - [ ] Criar Colang rules basicas (jailbreak, prompt injection)
@@ -285,14 +310,14 @@ infra/nemo/
     └── output-rails.co              # Regras de output
 ```
 
-### 2.2a Migrar standalone pra Guardrails
+### 2.3a Migrar standalone pra Guardrails
 
 - [ ] Atualizar ConfigMap `claude-code-config`: `ANTHROPIC_BASE_URL` → Guardrails endpoint
 - [ ] Reiniciar pod standalone
 - [ ] Validar: Claude Code continua respondendo via Guardrails → vLLM
 - [ ] Validar: request com PII bloqueado no standalone tambem
 
-### 2.3 Coder como CDE (Fase 3)
+### 2.4 Coder como CDE (Fase 3)
 
 - [ ] Deploy PostgreSQL via OperatorHub no namespace `coder`
 - [ ] Helm install Coder v2 com SecurityContext compativel com `restricted-v2`
@@ -325,11 +350,14 @@ coder/
 
 | # | Criterio | Validacao |
 |---|---|---|
-| G2.1 | Request com PII bloqueado pelo TrustyAI (AC-5) | Teste com CPF/email no prompt |
-| G2.2 | Request limpo chega no vLLM e retorna resposta | `curl` via Guardrails endpoint |
-| G2.3 | Coder UI acessivel via Route com TLS | Browser |
-| G2.4 | Dev cria workspace e Claude Code funciona (AC-1) | Teste manual end-to-end |
-| G2.5 | Auth OIDC funciona (login via OpenShift) | Teste manual |
+| G2.1 | Traces de tool calls aparecem no MLflow (AC-6) | UI do MLflow |
+| G2.2 | OTEL Collector recebendo spans | `oc logs` do collector |
+| G2.3 | Dados capturados: prompts, tokens, latencia, tools | Inspecionar traces |
+| G2.4 | Request com PII bloqueado pelo TrustyAI (AC-5) | Teste com CPF/email no prompt |
+| G2.5 | Request limpo chega no vLLM e retorna resposta | `curl` via Guardrails endpoint |
+| G2.6 | Coder UI acessivel via Route com TLS | Browser |
+| G2.7 | Dev cria workspace e Claude Code funciona (AC-1) | Teste manual end-to-end |
+| G2.8 | Auth OIDC funciona (login via OpenShift) | Teste manual |
 
 ---
 
@@ -409,11 +437,11 @@ agentops/
 
 ---
 
-## Sprint 4 — Governanca + Observabilidade (Semana 4)
+## Sprint 4 — Governanca (Semana 4)
 
-> **Meta:** Tools governadas por identidade. Traces de tudo no MLflow.
+> **Meta:** Tools governadas por identidade.
 >
-> **Fases PRD:** 6 + 7
+> **Fases PRD:** 6
 
 ### 4.1 MCP Gateway (Fase 6)
 
@@ -451,40 +479,12 @@ mcp-gateway/
     └── filesystem.yaml              # MCP server filesystem
 ```
 
-### 4.2 Observabilidade (Fase 7)
-
-- [ ] Deploy OTEL Collector no namespace `observability`
-- [ ] Configurar receiver OTLP (gRPC :4317, HTTP :4318)
-- [ ] Deploy MLflow Tracking Server com storage (PV ou S3)
-- [ ] Configurar OTEL exporter → MLflow
-- [ ] Configurar Claude Code: `OTEL_EXPORTER_OTLP_ENDPOINT`
-- [ ] Validar: traces aparecem no MLflow apos tool call
-- [ ] Criar dashboards basicos: tokens/hora, tool calls/agente, latencia
-
-**Artefatos:**
-
-```
-observability/
-├── otel/
-│   ├── collector.yaml               # OTEL Collector deployment + config
-│   └── service.yaml                 # Service ClusterIP
-├── mlflow/
-│   ├── deployment.yaml              # MLflow Tracking Server
-│   ├── pvc.yaml                     # Storage
-│   └── service.yaml
-└── dashboards/
-    └── agent-metrics.json           # Dashboard config (se aplicavel)
-```
-
 ### Gate do Sprint 4
 
 | # | Criterio | Validacao |
 |---|---|---|
 | G4.1 | Tools filtradas por role do token no MCP Gateway (AC-4) | `tools/list` com tokens de roles diferentes |
 | G4.2 | Tool call nao-autorizada retorna 403 | `tools/call` com token sem permissao |
-| G4.3 | Traces de tool calls aparecem no MLflow (AC-6) | UI do MLflow |
-| G4.4 | Dados capturados: prompts, tokens, latencia, tools | Inspecionar traces |
-| G4.5 | OTEL Collector recebendo spans | `oc logs` do collector |
 
 ---
 
@@ -546,8 +546,8 @@ docs/
 
 ### 5.3 Housekeeping
 
-- [ ] Criar README.md do repositorio
-- [ ] Criar `.gitignore`
+- [x] Criar README.md do repositorio
+- [x] Criar `.gitignore`
 - [ ] Revisar e atualizar docs com aprendizados
 - [ ] Documentar troubleshooting / runbook
 
@@ -580,9 +580,9 @@ claude-code-openshift/
 ├── README.md
 ├── .gitignore
 ├── docs/
-│   ├── prd.md
-│   ├── architecture.md
-│   ├── plan.md                      ← este arquivo
+│   ├── PRD.md
+│   ├── ARCHITECTURE.md
+│   ├── PLAN.md                      ← este arquivo
 │   ├── cluster-info.md              # Specs do cluster (Sprint 1)
 │   ├── adrs/
 │   ├── references/
@@ -623,22 +623,22 @@ claude-code-openshift/
 ```mermaid
 flowchart LR
     S1[Sprint 1<br>Infra + vLLM<br>+ Claude standalone] --> GoNoGo{Go/No-Go<br>modelo}
-    GoNoGo -->|Go| S2[Sprint 2<br>Safety + Coder]
+    GoNoGo -->|Go| S2[Sprint 2<br>Observability +<br>Safety + Coder]
     GoNoGo -->|No-Go| Fix[Escalar modelo<br>ou mudar approach]
     Fix --> S1
     S2 --> S3[Sprint 3<br>Kata + Kagenti]
-    S3 --> S4[Sprint 4<br>MCP + Observability]
+    S3 --> S4[Sprint 4<br>MCP Gateway]
     S4 --> S5[Sprint 5<br>CI/CD + E2E]
 
     S1 -->|"vLLM + agente validado"| S2
-    S2 -->|"Guardrails + Coder"| S3
+    S2 -->|"OTEL + Guardrails + Coder"| S3
     S3 -->|"SPIFFE tokens"| S4
     S4 -->|"Stack completa"| S5
 ```
 
 **Dependencias criticas:**
 - Sprint 1 tem **go/no-go**: agente + modelo funcionam? Se nao, resolve antes de investir no resto
-- Sprint 2 depende do vLLM + agente standalone validados (Sprint 1)
+- Sprint 2 depende do vLLM + agente standalone validados (Sprint 1). Observabilidade primeiro (sem deps, traces ajudam a debugar o resto)
 - Sprint 3 depende do Coder funcional (Sprint 2) pra testar Kata nos workspaces
 - Sprint 4 depende dos tokens SPIFFE (Sprint 3) pra autenticar no MCP Gateway
 - Sprint 5 eh integracao — depende de tudo
@@ -653,6 +653,7 @@ flowchart LR
 | 1 | GPU insuficiente pro modelo | Quantizacao agressiva (Q5) ou Qwen 7B |
 | 1 | Claude Code incompativel com API do vLLM/Qwen | Testar no standalone; ajustar env vars ou modelo |
 | 1 | Qwen 2.5 14B gera codigo ruim | Go/no-go no Sprint 1; escalar antes de investir no resto |
+| 2 | MLflow storage insuficiente para traces | Monitorar PVC usage; expandir ou usar S3 |
 | 2 | Coder SCC conflicts com restricted-v2 | Seguir doc oficial; testar com anyuid se necessario |
 | 2 | TrustyAI latencia alta | Medir; desabilitar detectors pesados |
 | 3 | Kagenti alpha — breaking changes | Pintar versao; manter workaround manual |

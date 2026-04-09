@@ -2,7 +2,7 @@
 
 **Status:** Draft
 **Data:** 2026-04-08
-**Relacionado:** [PRD](prd.md) | [ADRs](../adrs/)
+**Relacionado:** [PRD](PRD.md) | [ADRs](../adrs/)
 
 ---
 

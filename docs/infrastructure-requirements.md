@@ -2,7 +2,7 @@
 
 **Status:** Validated (Sprint 1)
 **Data:** 2026-04-08
-**Relacionado:** [Arquitetura](architecture.md) | [ADRs](adrs/) | [Plan](plan.md)
+**Relacionado:** [Arquitetura](ARCHITECTURE.md) | [ADRs](adrs/) | [Plan](PLAN.md)
 
 ---
 
