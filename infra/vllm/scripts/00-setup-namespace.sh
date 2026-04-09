@@ -32,19 +32,23 @@ GPU_NODES=$(oc get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.s
 
 if [[ "$GPU_NODES" -ge 1 ]]; then
   echo "  Found $GPU_NODES node(s) with NVIDIA GPUs."
+  oc get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.allocatable.nvidia\.com/gpu}{"\t"}{.metadata.labels.nvidia\.com/gpu\.product}{"\n"}{end}' 2>/dev/null \
+    | awk '$2 > 0 {printf "    %s — %s GPU(s) — %s\n", $1, $2, $3}'
 else
   echo "  WARNING: No GPU nodes detected."
-  echo "  Ensure the NVIDIA GPU Operator is installed."
+  echo "  Ensure the NVIDIA GPU Operator is installed and a GPU MachineSet exists."
 fi
 echo ""
 
-echo "Checking KServe CRDs..."
-if oc get crd inferenceservices.serving.kserve.io &>/dev/null; then
-  echo "  InferenceService CRD found."
+echo "Checking StorageClass for PVC..."
+if oc get storageclass gp3-csi &>/dev/null; then
+  echo "  StorageClass gp3-csi found."
+elif oc get storageclass gp2-csi &>/dev/null; then
+  echo "  StorageClass gp2-csi found (update pvc.yaml if using gp2-csi)."
 else
-  echo "  ERROR: InferenceService CRD not found."
-  echo "  Ensure OpenShift AI is installed with KServe enabled."
-  exit 1
+  echo "  WARNING: No gp3-csi or gp2-csi StorageClass found."
+  echo "  Available StorageClasses:"
+  oc get storageclass -o name 2>/dev/null | sed 's/^/    /'
 fi
 echo ""
 

@@ -14,24 +14,38 @@ echo " Claude Code | Verification"
 echo "============================================================"
 echo ""
 
-# ── 1. Pod Status ─────────────────────────────────────────────
+# ── 1. Deployment Status ─────────────────────────────────────
 
-echo "1. Pod Status"
+echo "1. Deployment Status"
 
-if oc get pod "$POD_NAME" -n "$NAMESPACE" &>/dev/null; then
-  pass "Pod '$POD_NAME' exists"
+if oc get deployment "$DEPLOY_NAME" -n "$NAMESPACE" &>/dev/null; then
+  pass "Deployment '$DEPLOY_NAME' exists"
 else
-  fail "Pod '$POD_NAME' not found"
+  fail "Deployment '$DEPLOY_NAME' not found"
   echo ""; exit 1
 fi
 
-POD_PHASE=$(oc get pod "$POD_NAME" -n "$NAMESPACE" \
-  -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
-if [[ "$POD_PHASE" == "Running" ]]; then
-  pass "Pod is Running"
+DESIRED=$(oc get deployment "$DEPLOY_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+READY_REPLICAS=$(oc get deployment "$DEPLOY_NAME" -n "$NAMESPACE" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+if [[ "${READY_REPLICAS:-0}" -ge 1 ]]; then
+  pass "Ready replicas: ${READY_REPLICAS}/${DESIRED}"
 else
-  fail "Pod is not Running (phase: ${POD_PHASE:-unknown})"
+  fail "No ready replicas (${READY_REPLICAS:-0}/${DESIRED})"
 fi
+
+POD_NAME=$(oc get pods -n "$NAMESPACE" -l "app.kubernetes.io/name=claude-code,app.kubernetes.io/component=agent-standalone" \
+  --field-selector=status.phase=Running \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+
+if [[ -z "$POD_NAME" ]]; then
+  fail "No running Claude Code pod found"
+  echo ""
+  echo "============================================================"
+  echo " Results: $PASS passed, $FAIL failed, $WARN warnings"
+  echo "============================================================"
+  exit 1
+fi
+pass "Using pod: $POD_NAME"
 
 RESTART_COUNT=$(oc get pod "$POD_NAME" -n "$NAMESPACE" \
   -o jsonpath='{.status.containerStatuses[0].restartCount}' 2>/dev/null || echo "0")
@@ -117,6 +131,24 @@ else
 fi
 echo ""
 
+# ── 7. Multi-Agent ───────────────────────────────────────────
+
+echo "7. Multi-Agent Status"
+
+ALL_PODS=$(oc get pods -n "$NAMESPACE" -l "app.kubernetes.io/name=claude-code,app.kubernetes.io/component=agent-standalone" \
+  --no-headers 2>/dev/null | wc -l | tr -d ' ')
+RUNNING_PODS=$(oc get pods -n "$NAMESPACE" -l "app.kubernetes.io/name=claude-code,app.kubernetes.io/component=agent-standalone" \
+  --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l | tr -d ' ')
+
+pass "Total pods: $ALL_PODS, Running: $RUNNING_PODS"
+
+if [[ "$RUNNING_PODS" -eq "$DESIRED" ]]; then
+  pass "All desired replicas are running ($RUNNING_PODS/$DESIRED)"
+else
+  warn "Not all replicas running ($RUNNING_PODS/$DESIRED)"
+fi
+echo ""
+
 # ── Summary ───────────────────────────────────────────────────
 
 echo "============================================================"
@@ -126,7 +158,9 @@ echo "============================================================"
 [[ "$FAIL" -gt 0 ]] && exit 1
 
 echo ""
-echo "Agent standalone is operational."
+echo "Agent standalone is operational ($RUNNING_PODS replica(s))."
 echo ""
 echo "  Interactive:  oc exec -it -n $NAMESPACE $POD_NAME -- claude"
 echo "  Headless:     oc exec -n $NAMESPACE $POD_NAME -- claude -p 'your prompt'"
+echo "  Logged:       oc exec -n $NAMESPACE $POD_NAME -- claude-logged 'your prompt'"
+echo "  Scale:        oc scale deployment/$DEPLOY_NAME -n $NAMESPACE --replicas=N"

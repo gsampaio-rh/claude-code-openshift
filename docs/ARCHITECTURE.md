@@ -11,18 +11,34 @@
 A plataforma AgentOps roda AI coding agents (Claude Code) no OpenShift com isolamento, identidade, governanca, observabilidade e safety — sem modificar o codigo do agente (principio BYOA).
 
 ```
-                    ┌─────────────────────────────────────────────┐
-                    │              OpenShift Cluster               │
-                    │                                             │
-Developer ──┬──> Coder (CDE) ──> Kata VM (agente) ──> MCP Gateway│
-            │                         │                    │      │
-            │                         v                    v      │
-            │                   Guardrails ──> vLLM    AuthPolicy │
-            │                         │                           │
-            └──> Claude Code ─────────┘                           │
-                 (standalone)         v                           │
-                                OTEL ──> MLflow                   │
-                    └─────────────────────────────────────────────┘
+                          Developer
+                         ┌────┴────┐
+                         │         │
+                    oc exec    Coder UI
+                         │         │
+                         v         v
+┌────────────────────────────────────────────────────────────────┐
+│                      OpenShift Cluster                         │
+│                                                                │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  Agent Layer                                             │  │
+│  │  Claude Code standalone  ·  Coder workspace (Kata VM)    │  │
+│  └──────┬──────────────────────┬───────────────────┬────────┘  │
+│         │                      │                   │           │
+│         v                      v                   v           │
+│  ┌──────────────┐    ┌──────────────────┐    ┌──────────┐     │
+│  │    Safety     │    │   Governance     │    │   OTEL   │     │
+│  │  Guardrails   │    │   MCP Gateway    │    │ Collector│     │
+│  │  (TrustyAI)   │    │  (Envoy + OPA)   │    │          │     │
+│  └──────┬────────┘    └──────────────────┘    └────┬─────┘     │
+│         │                                          │           │
+│         v                                          v           │
+│  ┌──────────────┐                           ┌──────────┐      │
+│  │  Inference    │                           │  MLflow  │      │
+│  │  vLLM + GPU   │                           │ Tracking │      │
+│  │  (L40S 48GB)  │                           │          │      │
+│  └──────────────┘                           └──────────┘      │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 Claude Code pode rodar em dois modos: **standalone** (pod direto, headless/interativo via `oc exec`) ou **CDE-embedded** (dentro de workspace Coder). O standalone sobe primeiro (Fase 1) pra validar o core agente+modelo antes de montar o CDE.
@@ -138,7 +154,7 @@ flowchart TB
 | Componente | Tecnologia | Namespace |
 |---|---|---|
 | Runtime | Node.js 20 + Claude Code CLI | `agent-sandboxes` |
-| Modo standalone | Pod direto (`oc exec` / headless API) | `agent-sandboxes` |
+| Modo standalone | Deployment (N replicas, `oc exec` / headless API) | `agent-sandboxes` |
 | Modo CDE | Embarcado no Coder workspace template | `agent-sandboxes` |
 | Config | ConfigMap compartilhado (env vars do agente) | `agent-sandboxes` |
 
@@ -149,11 +165,18 @@ flowchart TB
 | **Standalone** | Fase 1 | `oc exec`, headless API, port-forward | Validacao core, automacao, CI/CD |
 | **CDE-embedded** | Fase 3 | Coder workspace (VS Code / terminal) | Dev interativo |
 
-**Standalone deploy (Fase 1):**
-1. Pod com imagem custom UBI (`registry.access.redhat.com/ubi9/nodejs-22` + Claude Code CLI)
-2. `ANTHROPIC_BASE_URL` aponta direto pro vLLM (sem Guardrails ainda)
-3. Dev interage via `oc exec -it` ou `kubectl port-forward`
-4. Valida: agente conversa com modelo local, responde prompts de coding
+**Standalone deploy:**
+1. Deployment com N replicas (imagem custom UBI `registry.access.redhat.com/ubi9/nodejs-22` + Claude Code CLI)
+2. Cada replica eh um agente independente com seu proprio `session_id` e log stream
+3. `ANTHROPIC_BASE_URL` aponta direto pro vLLM (Fase 1) ou Guardrails (Fase 2+)
+4. Dev interage via `oc exec -it <pod>` ou headless API
+5. Escala horizontal: `oc scale deployment/claude-code-standalone --replicas=N`
+
+**Multi-agente standalone:**
+- Cada pod standalone eh independente — sem estado compartilhado entre agentes
+- Todos compartilham o mesmo ConfigMap, imagem e vLLM endpoint
+- vLLM suporta concorrencia via batching automatico (L40S com margem de KV cache)
+- ResourceQuota do namespace `agent-sandboxes` limita o numero maximo de pods
 
 **Logging (ADR-015):**
 
@@ -189,7 +212,7 @@ data:
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
   CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS: "1"
   CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
-  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "2048"
+  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "16384"
   MAX_THINKING_TOKENS: "0"
 ```
 
@@ -296,20 +319,22 @@ sequenceDiagram
 | Model serving | Upstream vLLM v0.19.0 (ADR-011) | `inference` |
 | Deploy method | Plain Deployment+Service (ADR-012) | `inference` |
 | Modelo | Qwen 2.5 14B Instruct FP8-dynamic | `inference` |
-| GPU | NVIDIA L4 24GB (1x) | — |
+| GPU | NVIDIA L40S 48GB (1x) — escalado de L4 24GB (ADR-016) | — |
 | Guardrails (GA) | TrustyAI Guardrails Orchestrator | `inference` |
 | Guardrails (TP) | NeMo Guardrails | `inference` |
 
-**Tuning para L4 24GB (Sprint 1):**
+**Tuning para L40S 48GB (ADR-016):**
 
 | Parametro | Valor | Racional |
 |---|---|---|
-| `--max-model-len` | `24576` | System prompt ~12K + output 2K + margem. 32K excede KV cache do L4. |
-| `--gpu-memory-utilization` | `0.95` | Maximiza capacidade no L4 24GB |
-| `--enforce-eager` | ativado | Desabilita CUDA graph capture. Necessario: (1) GPU memory pressure com 95% utilization, (2) OpenShift dropa `ALL` capabilities incluindo `IPC_LOCK` |
+| `--max-model-len` | `32768` | Maximo nativo do Qwen 2.5 14B (`max_position_embeddings`). L40S tem VRAM suficiente pra KV cache completo. |
+| `--gpu-memory-utilization` | `0.90` | Margem confortavel — modelo ocupa ~15GB de 48GB |
+| `--enforce-eager` | desativado | CUDA graphs + torch.compile ativados. L40S tem margem de VRAM. |
 | `--enable-chunked-prefill` | ativado | Permite processar prefill em chunks, reduz memory spikes em prompts grandes (~12K system prompt) |
 | `--tool-call-parser=hermes` | hermes | Parser de tool calls compativel com Qwen (template Hermes) |
 | `model-cache` volume | PVC 30Gi (gp3-csi) | Modelo (~16GB com cache) persiste entre restarts. PVC criado via `infra/vllm/manifests/pvc.yaml`. |
+| Deployment strategy | `Recreate` | PVC RWO nao suporta multi-attach cross-node. Recreate garante volume liberado antes de criar pod novo. |
+| `nodeSelector` | `nvidia.com/gpu.product: NVIDIA-L40S` | Garante scheduling no node correto |
 
 **Fluxo de request:**
 
@@ -502,7 +527,7 @@ Configuradas via ConfigMap `claude-code-config` no namespace `agent-sandboxes`. 
 | `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `1` | `1` | Impede conexoes de startup ao api.anthropic.com (issue #36998) |
 | `CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS` | `1` | `1` | Evita falha no modo interativo em pods sem internet |
 | `CLAUDE_CODE_ATTRIBUTION_HEADER` | `0` | `0` | Desabilita hash por-request que quebra prefix caching no vLLM |
-| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `2048` | `2048` | System prompt do Claude Code consome ~12K tokens; 2048 output cabe no context de 24K |
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `16384` | `16384` | System prompt do Claude Code consome ~12K tokens; 16384 output cabe no context de 32K (L40S, ADR-016) |
 | `MAX_THINKING_TOKENS` | `0` | `0` | Desabilitado para Qwen |
 | `CLAUDE_CODE_ENABLE_TELEMETRY` | N/A | `1` | Habilita OTEL nativo do Claude Code |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | N/A | `http://otel-collector.observability.svc:4317` | Traces |
@@ -528,3 +553,4 @@ Ver [ADRs](../adrs/) para o racional de cada decisao.
 | ADR-013 | NetworkPolicy fixes para OVN-Kubernetes (DNS ClusterIP, build pods) |
 | ADR-014 | PVC para model cache (nao emptyDir) — restart sem re-download |
 | ADR-015 | Structured logging via entrypoint + claude-logged wrapper (NDJSON) |
+| ADR-016 | GPU scaling L4→L40S: context 32K, CUDA graphs, output 16K (ADR-016) |

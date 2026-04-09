@@ -8,7 +8,7 @@ echo "============================================================"
 echo " vLLM | Cleanup"
 echo "============================================================"
 echo ""
-echo "Removes InferenceService, ServingRuntime, Secret for '$MODEL_NAME'."
+echo "Removes Deployment, Service, and PVC for '$MODEL_NAME'."
 echo "Namespace is NOT deleted."
 echo ""
 
@@ -16,11 +16,15 @@ read -rp "Continue? (y/N) " confirm
 [[ "$confirm" != "y" && "$confirm" != "Y" ]] && echo "Aborted." && exit 0
 
 echo ""
-oc delete inferenceservice "$MODEL_NAME" -n "$NAMESPACE" --ignore-not-found
-oc delete servingruntime "$MODEL_NAME" -n "$NAMESPACE" --ignore-not-found
-oc delete secret "$MODEL_NAME" -n "$NAMESPACE" --ignore-not-found
+echo "Deleting kustomize resources..."
+oc delete -k "$MANIFESTS_DIR" -n "$NAMESPACE" --ignore-not-found
 
 echo ""
 echo "Waiting for pods to terminate..."
-sleep 10
+oc wait --for=delete pod -l app.kubernetes.io/name="$MODEL_NAME" -n "$NAMESPACE" --timeout=60s 2>/dev/null || true
+
+echo ""
+echo "Remaining resources in '$NAMESPACE':"
+oc get all,pvc -n "$NAMESPACE" 2>/dev/null || true
+echo ""
 echo "Cleanup complete."

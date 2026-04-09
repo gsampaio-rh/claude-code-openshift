@@ -9,6 +9,8 @@ metadata:
     app.kubernetes.io/part-of: agentops
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: qwen25-14b
@@ -19,6 +21,13 @@ spec:
         app.kubernetes.io/component: model-serving
         app.kubernetes.io/part-of: agentops
     spec:
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      nodeSelector:
+        nvidia.com/gpu.product: NVIDIA-L40S
       containers:
         - name: vllm
           image: vllm/vllm-openai:v0.19.0
@@ -26,12 +35,11 @@ spec:
             - --port=8080
             - --model=RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic
             - --served-model-name=qwen25-14b
-            - --max-model-len=24576
+            - --max-model-len=32768
             - --tool-call-parser=hermes
             - --enable-auto-tool-choice
             - --enable-chunked-prefill
-            - --gpu-memory-utilization=0.95
-            - --enforce-eager
+            - --gpu-memory-utilization=0.90
             - --download-dir=/mnt/models
           ports:
             - containerPort: 8080
@@ -57,7 +65,7 @@ spec:
               nvidia.com/gpu: "1"
             limits:
               cpu: "4"
-              memory: 24Gi
+              memory: 48Gi
               nvidia.com/gpu: "1"
           securityContext:
             allowPrivilegeEscalation: false

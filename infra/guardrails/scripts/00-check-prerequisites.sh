@@ -17,13 +17,13 @@ echo "Logged in as: $(oc whoami)"
 echo ""
 
 echo "Checking model '$MODEL_NAME'..."
-if oc get inferenceservice "$MODEL_NAME" -n "$NAMESPACE" &>/dev/null; then
-  IS_READY=$(oc get inferenceservice "$MODEL_NAME" -n "$NAMESPACE" \
-    -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
-  echo "  InferenceService found. Ready: ${IS_READY:-unknown}"
+if oc get deployment "$MODEL_NAME" -n "$NAMESPACE" &>/dev/null; then
+  READY=$(oc get deployment "$MODEL_NAME" -n "$NAMESPACE" \
+    -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+  echo "  Deployment found. Ready replicas: ${READY:-0}"
 else
-  echo "  ERROR: InferenceService '$MODEL_NAME' not found in '$NAMESPACE'."
-  echo "  Deploy vLLM first: cd ../vllm && ./scripts/01-deploy-model.sh"
+  echo "  ERROR: Deployment '$MODEL_NAME' not found in '$NAMESPACE'."
+  echo "  Deploy vLLM first: cd ../../vllm/scripts && ./01-deploy-model.sh"
   exit 1
 fi
 echo ""

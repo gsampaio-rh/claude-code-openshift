@@ -13,28 +13,31 @@ echo "── Applying ConfigMap ──"
 oc apply -f "$MANIFESTS_DIR/configmap.yaml"
 echo ""
 
-echo "── Deploying standalone pod ──"
+echo "── Deploying standalone Deployment ──"
 oc apply -f "$MANIFESTS_DIR/standalone-pod.yaml"
 echo ""
 
-echo "── Waiting for pod to be ready ──"
-oc wait --for=condition=Ready \
-  "pod/$POD_NAME" \
-  -n "$NAMESPACE" \
-  --timeout=120s
+echo "── Waiting for rollout ──"
+oc rollout status deployment/"$DEPLOY_NAME" -n "$NAMESPACE" --timeout=120s
 echo ""
 
 echo "── Verifying Claude Code CLI ──"
+POD_NAME=$(oc get pods -n "$NAMESPACE" -l "app.kubernetes.io/name=claude-code,app.kubernetes.io/component=agent-standalone" \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
 oc exec -n "$NAMESPACE" "$POD_NAME" -- claude --version
 echo ""
 
-echo "Standalone agent is ready."
+REPLICAS=$(oc get deployment "$DEPLOY_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.replicas}' 2>/dev/null)
+echo "Standalone agent is ready ($REPLICAS replica(s))."
 echo ""
-echo "  To interact:"
+echo "  To interact with a specific pod:"
 echo "    oc exec -it -n $NAMESPACE $POD_NAME -- claude"
 echo ""
 echo "  Headless mode:"
 echo "    oc exec -n $NAMESPACE $POD_NAME -- claude -p 'Write a fibonacci function in Python'"
+echo ""
+echo "  Scale to N agents:"
+echo "    oc scale deployment/$DEPLOY_NAME -n $NAMESPACE --replicas=N"
 echo ""
 echo "Next: verify connectivity to vLLM:"
 echo "  ./99-verify.sh"

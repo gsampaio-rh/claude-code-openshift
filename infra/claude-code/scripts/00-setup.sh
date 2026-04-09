@@ -26,20 +26,29 @@ else
 fi
 echo ""
 
+NAMESPACE_INFERENCE="${NAMESPACE_INFERENCE:-inference}"
 echo "Checking vLLM availability..."
-ENDPOINT="http://${MODEL_NAME}-predictor.${NAMESPACE_INFERENCE}.svc.cluster.local:8080/v1"
-if oc get inferenceservice "$MODEL_NAME" -n "$NAMESPACE_INFERENCE" &>/dev/null; then
-  IS_READY=$(oc get inferenceservice "$MODEL_NAME" -n "$NAMESPACE_INFERENCE" \
-    -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
-  echo "  InferenceService found. Ready: ${IS_READY:-unknown}"
-  echo "  Endpoint: $ENDPOINT"
+if oc get deployment "$MODEL_NAME" -n "$NAMESPACE_INFERENCE" &>/dev/null; then
+  READY=$(oc get deployment "$MODEL_NAME" -n "$NAMESPACE_INFERENCE" \
+    -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+  echo "  Deployment '$MODEL_NAME' found. Ready replicas: ${READY:-0}"
+  echo "  Endpoint: $VLLM_ENDPOINT"
+
+  if [[ "${READY:-0}" -ge 1 ]]; then
+    echo "  Status: READY"
+  else
+    echo "  WARNING: Deployment exists but no ready replicas."
+    echo "  Check: oc rollout status deployment/$MODEL_NAME -n $NAMESPACE_INFERENCE"
+  fi
 else
-  echo "  WARNING: InferenceService '$MODEL_NAME' not found."
-  echo "  Deploy vLLM first: cd ../../vllm && ./scripts/01-deploy-model.sh"
+  echo "  WARNING: Deployment '$MODEL_NAME' not found in '$NAMESPACE_INFERENCE'."
+  echo "  Deploy vLLM first: cd ../../vllm/scripts && ./01-deploy-model.sh"
 fi
 echo ""
 
 echo "Setup complete."
 echo ""
-echo "Next: deploy the standalone agent:"
+echo "Next: build the agent image:"
+echo "  ./build-image.sh"
+echo "Then deploy:"
 echo "  ./01-deploy-standalone.sh"

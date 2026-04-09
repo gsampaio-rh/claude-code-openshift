@@ -102,8 +102,8 @@ infra/cluster/
 - KServe `ServingRuntime`+`InferenceService` substituido por plain `Deployment`+`Service` — ver ADR-012
 - Cache dirs (`HF_HOME`, `XDG_CACHE_HOME`, `HOME`) redirecionados para volumes writables (OpenShift random UID)
 - `startupProbe` com 10 min de tolerancia para download do modelo
-- `--max-model-len=24576` (nao 16384 nem 32768): system prompt do Claude Code consome ~12K tokens; 16K estourava com 4096 output; 32K excede KV cache do L4
-- `CLAUDE_CODE_MAX_OUTPUT_TOKENS=2048` (nao 4096): complementa o ajuste de context window
+- `--max-model-len=24576` (Sprint 1, L4): system prompt ~12K tokens; 16K estourava com 4096 output; 32K excedia KV cache do L4. Escalado pra 32768 com L40S (ADR-016)
+- `CLAUDE_CODE_MAX_OUTPUT_TOKENS=2048` (Sprint 1, L4): complementava ajuste de context. Escalado pra 16384 com L40S (ADR-016)
 
 **Artefatos:**
 
@@ -193,6 +193,24 @@ Este eh o checkpoint mais importante do PoC. Se Claude Code + Qwen 2.5 14B nao p
 - [x] Migrar `model-cache` de `emptyDir` para `PVC` 30Gi gp3-csi (modelo 16GB persistido, restart sem re-download)
 - [x] Remover NetworkPolicies temporarias (`allow-claude-egress-temp`, `allow-builds-egress`)
 - [x] Rebuild imagem Claude Code com PATH corrigido (`/opt/app-root/src/.local/bin`)
+
+### 2.0a GPU Scaling (ADR-016)
+
+- [x] Criar MachineSet `gpu-l40s-us-east-2b` (g6e.4xlarge, 1x NVIDIA L40S 48GB)
+- [x] Aguardar node provisionar + GPU Operator instalar driver (~10 min)
+- [x] Reconfigurar vLLM: `max_model_len=32768`, remover `--enforce-eager`, `gpu-memory-utilization=0.90`
+- [x] Corrigir `max_model_len`: Qwen 2.5 14B tem `max_position_embeddings=32768` (nao 131072, que eh so pra modelos maiores com YaRN)
+- [x] Mudar Deployment strategy de `RollingUpdate` para `Recreate` (PVC RWO nao suporta multi-attach cross-node)
+- [x] Aumentar `inference-quota`: memory 64Gi→128Gi, cpu 16→32
+- [x] Migrar vLLM pro node L40S via `nodeSelector` + `tolerations`
+- [x] Validar rollout: pod 1/1 Running no node L40S
+- [x] Subir `CLAUDE_CODE_MAX_OUTPUT_TOKENS` de 2048 para 16384
+- [x] E2E test: Claude Code → vLLM (L40S) — input 22K tokens, output 594 tokens, ~23s
+
+**Problemas encontrados e resolvidos:**
+- `max_model_len=131072` crashava: Qwen 2.5 14B `max_position_embeddings=32768`. Corrigido pra 32768.
+- PVC Multi-Attach error: EBS RWO nao suporta attach em 2 nodes simultaneamente. Corrigido com strategy `Recreate`.
+- ResourceQuota bloqueava pod novo (old 24Gi + new 48Gi > 64Gi limit). Aumentada pra 128Gi.
 
 ### 2.1 TrustyAI Guardrails (Fase 2)
 
