@@ -13,7 +13,7 @@ metadata:
   name: agent-sandboxes-egress
   namespace: agent-sandboxes
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 spec:
   podSelector:
     matchExpressions:
@@ -91,7 +91,7 @@ metadata:
   name: agent-sandboxes-builds-egress
   namespace: agent-sandboxes
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 spec:
   podSelector:
     matchExpressions:
@@ -109,7 +109,7 @@ metadata:
   name: inference-allow-ingress
   namespace: inference
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 spec:
   podSelector: {}
   policyTypes:
@@ -140,7 +140,7 @@ metadata:
   name: inference-egress
   namespace: inference
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 spec:
   podSelector: {}
   policyTypes:
@@ -177,7 +177,7 @@ metadata:
   name: agent-sandboxes-ingress
   namespace: agent-sandboxes
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 spec:
   podSelector: {}
   policyTypes:

@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: qwen25-14b
     app.kubernetes.io/component: model-serving
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 spec:
   replicas: 1
   strategy:
@@ -19,7 +19,7 @@ spec:
       labels:
         app.kubernetes.io/name: qwen25-14b
         app.kubernetes.io/component: model-serving
-        app.kubernetes.io/part-of: agentops
+        app.kubernetes.io/part-of: agentops-platform
     spec:
       tolerations:
         - key: nvidia.com/gpu

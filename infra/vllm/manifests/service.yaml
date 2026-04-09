@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: qwen25-14b
     app.kubernetes.io/component: model-serving
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 spec:
   selector:
     app.kubernetes.io/name: qwen25-14b

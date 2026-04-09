@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   name: inference
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
@@ -14,7 +14,7 @@ kind: Namespace
 metadata:
   name: agent-sandboxes
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
@@ -24,7 +24,7 @@ kind: Namespace
 metadata:
   name: coder
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
@@ -34,7 +34,7 @@ kind: Namespace
 metadata:
   name: agentops
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
@@ -44,7 +44,7 @@ kind: Namespace
 metadata:
   name: mcp-gateway
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
@@ -54,7 +54,7 @@ kind: Namespace
 metadata:
   name: observability
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
@@ -64,7 +64,7 @@ kind: Namespace
 metadata:
   name: cicd
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted

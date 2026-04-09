@@ -6,7 +6,7 @@ metadata:
   name: gateway-config
   namespace: inference
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 data:
   config.yaml: |
     orchestrator:

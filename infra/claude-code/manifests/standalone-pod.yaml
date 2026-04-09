@@ -6,7 +6,11 @@ metadata:
   labels:
     app.kubernetes.io/name: claude-code
     app.kubernetes.io/component: agent-standalone
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
+    app.openshift.io/runtime: claude-code
+  annotations:
+    app.openshift.io/runtime-image: "https://claude.ai/images/claude_app_icon.png"
+    openshift.io/display-name: "Claude Code Agent"
 spec:
   replicas: 1
   selector:
@@ -18,7 +22,7 @@ spec:
       labels:
         app.kubernetes.io/name: claude-code
         app.kubernetes.io/component: agent-standalone
-        app.kubernetes.io/part-of: agentops
+        app.kubernetes.io/part-of: agentops-platform
         kagenti.io/type: agent
     spec:
       serviceAccountName: claude-code-agent

@@ -4,7 +4,7 @@ metadata:
   name: agent-sandboxes-quota
   namespace: agent-sandboxes
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 spec:
   hard:
     requests.cpu: "20"
@@ -21,7 +21,7 @@ metadata:
   name: inference-quota
   namespace: inference
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 spec:
   hard:
     requests.cpu: "16"
@@ -39,7 +39,7 @@ metadata:
   name: coder-quota
   namespace: coder
   labels:
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 spec:
   hard:
     requests.cpu: "4"

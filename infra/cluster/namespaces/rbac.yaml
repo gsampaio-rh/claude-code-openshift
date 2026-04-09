@@ -6,7 +6,7 @@ metadata:
   namespace: agent-sandboxes
   labels:
     app.kubernetes.io/name: claude-code
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
     kagenti.io/type: agent
 automountServiceAccountToken: false
 ---
@@ -18,7 +18,7 @@ metadata:
   namespace: agent-sandboxes
   labels:
     app.kubernetes.io/name: claude-code
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 rules:
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -35,7 +35,7 @@ metadata:
   namespace: agent-sandboxes
   labels:
     app.kubernetes.io/name: claude-code
-    app.kubernetes.io/part-of: agentops
+    app.kubernetes.io/part-of: agentops-platform
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
