@@ -11,34 +11,74 @@
 A plataforma AgentOps roda AI coding agents (Claude Code) no OpenShift com isolamento, identidade, governanca, observabilidade e safety — sem modificar o codigo do agente (principio BYOA).
 
 ```
-                          Developer
-                         ┌────┴────┐
-                         │         │
-                    oc exec    Coder UI
-                         │         │
-                         v         v
-┌────────────────────────────────────────────────────────────────┐
-│                      OpenShift Cluster                         │
-│                                                                │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  Agent Layer                                             │  │
-│  │  Claude Code standalone  ·  Coder workspace (Kata VM)    │  │
-│  └──────┬──────────────────────┬───────────────────┬────────┘  │
-│         │                      │                   │           │
-│         v                      v                   v           │
-│  ┌──────────────┐    ┌──────────────────┐    ┌──────────┐     │
-│  │    Safety     │    │   Governance     │    │   OTEL   │     │
-│  │  Guardrails   │    │   MCP Gateway    │    │ Collector│     │
-│  │  (TrustyAI)   │    │  (Envoy + OPA)   │    │          │     │
-│  └──────┬────────┘    └──────────────────┘    └────┬─────┘     │
-│         │                                          │           │
-│         v                                          v           │
-│  ┌──────────────┐                           ┌──────────┐      │
-│  │  Inference    │                           │  MLflow  │      │
-│  │  vLLM + GPU   │                           │ Tracking │      │
-│  │  (L40S 48GB)  │                           │          │      │
-│  └──────────────┘                           └──────────┘      │
-└────────────────────────────────────────────────────────────────┘
+┌─ OpenShift Cluster (4.16+) ──────────────────────────────────────────────────┐
+│                                                                              │
+│  ┌─ GPU Node (g6e.4xlarge · 1x L40S 48GB) ───────────────────────────────┐  │
+│  │                                                                        │  │
+│  │  ┌─ ns: inference ─────────────────────────────────────────────────┐   │  │
+│  │  │                                                                 │   │  │
+│  │  │  ┌─ Deployment: qwen25-14b ──────────────────────────────────┐  │   │  │
+│  │  │  │  vLLM v0.19.0 · Qwen 2.5 14B FP8                        │  │   │  │
+│  │  │  │  /v1/messages (Anthropic) · /v1/chat/completions (OpenAI) │  │   │  │
+│  │  │  │  max_model_len=32768 · gpu-mem-util=0.90                  │  │   │  │
+│  │  │  │  PVC 30Gi (model cache)                                   │  │   │  │
+│  │  │  └───────────────────────────────────────────────────────────┘  │   │  │
+│  │  │                                                                 │   │  │
+│  │  │  ┌─ TrustyAI Guardrails (Fase 2+) ──────────────────────────┐  │   │  │
+│  │  │  │  PII detection · content filtering · output rails         │  │   │  │
+│  │  │  └───────────────────────────────────────────────────────────┘  │   │  │
+│  │  └─────────────────────────────────────────────────────────────────┘   │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  ┌─ Worker Nodes (general) ──────────────────────────────────────────────┐  │
+│  │                                                                        │  │
+│  │  ┌─ ns: agent-sandboxes ───────────────────────────────────────────┐  │  │
+│  │  │                                                                  │  │  │
+│  │  │  ┌─ Deployment: claude-code-standalone (xN replicas) ────────┐  │  │  │
+│  │  │  │  ┌─ Kata MicroVM ──────────────────────────────────────┐  │  │  │  │
+│  │  │  │  │  Guest kernel (isolado do host)                     │  │  │  │  │
+│  │  │  │  │  UBI9 + Node.js 22 + Claude Code CLI                │  │  │  │  │
+│  │  │  │  │  entrypoint.sh → sleep infinity (invoked via exec)  │  │  │  │  │
+│  │  │  │  │  claude-logged → NDJSON to oc logs                   │  │  │  │  │
+│  │  │  │  │  spiffe-helper sidecar · kagenti-client sidecar      │  │  │  │  │
+│  │  │  │  │  ──→ ANTHROPIC_BASE_URL → vLLM (ns:inference)        │  │  │  │  │
+│  │  │  │  └─────────────────────────────────────────────────────┘  │  │  │  │
+│  │  │  └───────────────────────────────────────────────────────────┘  │  │  │
+│  │  │                                                                  │  │  │
+│  │  │  ┌─ Coder Workspace Pods (Fase 3+) ─────────────────────────┐  │  │  │
+│  │  │  │  ┌─ Kata MicroVM ──────────────────────────────────────┐  │  │  │  │
+│  │  │  │  │  Guest kernel (isolado do host)                     │  │  │  │  │
+│  │  │  │  │  Claude Code + VS Code + git                        │  │  │  │  │
+│  │  │  │  │  spiffe-helper sidecar · kagenti-client sidecar     │  │  │  │  │
+│  │  │  │  │  ──→ Guardrails → vLLM                              │  │  │  │  │
+│  │  │  │  │  ──→ MCP Gateway (tools governados)                 │  │  │  │  │
+│  │  │  │  │  ──→ OTEL Collector (traces)                        │  │  │  │  │
+│  │  │  │  └─────────────────────────────────────────────────────┘  │  │  │  │
+│  │  │  └───────────────────────────────────────────────────────────┘  │  │  │
+│  │  └──────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                        │  │
+│  │  ┌─ ns: coder ────────────┐  ┌─ ns: mcp-gateway ──────────────────┐  │  │
+│  │  │  Coder v2 (Helm)       │  │  MCP Gateway (Envoy)                │  │  │
+│  │  │  PostgreSQL             │  │  Kuadrant AuthPolicy + OPA          │  │  │
+│  │  │  Route (TLS + OIDC)    │  │  MCP servers: GitHub, Filesystem    │  │  │
+│  │  └─────────────────────────┘  └────────────────────────────────────┘  │  │
+│  │                                                                        │  │
+│  │  ┌─ ns: observability ────┐  ┌─ ns: agentops ─────────────────────┐  │  │
+│  │  │  OTEL Collector        │  │  Kagenti Operator                   │  │  │
+│  │  │  MLflow Tracking       │  │  SPIRE Server (SVID X.509)          │  │  │
+│  │  └─────────────────────────┘  │  Keycloak (token exchange)         │  │  │
+│  │                                └────────────────────────────────────┘  │  │
+│  │                                                                        │  │
+│  │  ┌─ ns: cicd ─────────────┐                                           │  │
+│  │  │  Tekton Pipelines      │                                           │  │
+│  │  │  Garak (safety scan)   │                                           │  │
+│  │  └─────────────────────────┘                                           │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Acesso:
+  Developer ──oc exec──→ Claude Code standalone pod
+  Developer ──Browser──→ Coder UI ──→ Coder workspace (Kata VM)
 ```
 
 Claude Code pode rodar em dois modos: **standalone** (pod direto, headless/interativo via `oc exec`) ou **CDE-embedded** (dentro de workspace Coder). O standalone sobe primeiro (Fase 1) pra validar o core agente+modelo antes de montar o CDE.

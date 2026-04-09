@@ -41,6 +41,25 @@ spec:
             limits:
               cpu: "1"
               memory: 2Gi
+          startupProbe:
+            exec:
+              command: ["claude", "--version"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["claude", "--version"]
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["test", "-f", "/tmp/claude-logs/claude.jsonl"]
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 1
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
