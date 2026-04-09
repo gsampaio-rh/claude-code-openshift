@@ -52,7 +52,7 @@ info "OpenShift version: $OCP_VERSION"
 OCP_MAJOR=$(echo "$OCP_VERSION" | cut -d. -f1)
 OCP_MINOR=$(echo "$OCP_VERSION" | cut -d. -f2)
 if [[ "$OCP_MAJOR" -ge 4 && "$OCP_MINOR" -ge 16 ]]; then
-  pass "Version >= 4.16 (required for Kata, KServe, RHOAI)"
+  pass "Version >= 4.16 (required for Kata, RHOAI, Pod Security Standards)"
 else
   warn "Version $OCP_VERSION may be too old (recommended: 4.16+)"
 fi
@@ -191,7 +191,26 @@ fi
 
 echo ""
 
-# ── 6. Registry & Pull Secrets ────────────────────────────────
+# ── 6. Bare Metal Nodes (Kata) ────────────────────────────────
+
+echo "6. Bare Metal Nodes (Kata requirement — ADR-017)"
+
+METAL_NODES=$(oc get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.labels.node\.kubernetes\.io/instance-type}{"\n"}{end}' 2>/dev/null \
+  | grep -i "metal" || echo "")
+
+if [[ -n "$METAL_NODES" ]]; then
+  while IFS=$'\t' read -r NODE ITYPE; do
+    pass "Bare metal node: $NODE ($ITYPE)"
+  done <<< "$METAL_NODES"
+else
+  warn "No bare metal nodes found — Kata requires /dev/kvm (only *.metal instances)"
+  info "  EC2 VMs (g6, m6a, c5, etc.) do NOT expose /dev/kvm."
+  info "  Create a MachineSet with m5.metal or c5.metal for Kata support."
+fi
+
+echo ""
+
+# ── 7. Registry & Pull Secrets ────────────────────────────────
 
 echo "6. Registry & Pull Secrets"
 
@@ -211,9 +230,9 @@ fi
 
 echo ""
 
-# ── 7. DataScienceCluster ────────────────────────────────────
+# ── 8. DataScienceCluster ────────────────────────────────────
 
-echo "7. OpenShift AI Configuration"
+echo "8. OpenShift AI Configuration"
 
 DSC_KSERVE=$(oc get datasciencecluster -A -o jsonpath='{.items[0].spec.components.kserve.managementState}' 2>/dev/null || echo "")
 DSC_MM=$(oc get datasciencecluster -A -o jsonpath='{.items[0].spec.components.modelmeshserving.managementState}' 2>/dev/null || echo "")
@@ -237,9 +256,9 @@ fi
 
 echo ""
 
-# ── 8. Network & DNS ─────────────────────────────────────────
+# ── 9. Network & DNS ─────────────────────────────────────────
 
-echo "8. Network & DNS"
+echo "9. Network & DNS"
 
 if oc get dns cluster -o jsonpath='{.spec.baseDomain}' &>/dev/null; then
   BASE_DOMAIN=$(oc get dns cluster -o jsonpath='{.spec.baseDomain}' 2>/dev/null)

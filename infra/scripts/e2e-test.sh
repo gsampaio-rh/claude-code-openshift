@@ -200,9 +200,58 @@ else
 fi
 echo ""
 
-# ── 8. Security Posture ──────────────────────────────────────
+# ── 8. Kata Containers ────────────────────────────────────────
 
-echo "8. Security Posture"
+echo "8. Kata Containers"
+
+KATA_RC=$(oc get runtimeclass kata --no-headers 2>/dev/null || echo "")
+if [[ -n "$KATA_RC" ]]; then
+  pass "RuntimeClass 'kata' exists"
+else
+  warn "RuntimeClass 'kata' not found (Kata not installed)"
+fi
+
+RUNTIME_CLASS=$(oc get deployment "$DEPLOY_NAME" -n "$NAMESPACE_AGENT" \
+  -o jsonpath='{.spec.template.spec.runtimeClassName}' 2>/dev/null || echo "")
+if [[ "$RUNTIME_CLASS" == "kata" ]]; then
+  pass "Deployment uses runtimeClassName: kata"
+else
+  warn "Deployment runtimeClassName: '${RUNTIME_CLASS:-not set}' (expected: kata)"
+fi
+
+AGENT_NODE=$(oc get pod "$POD_NAME" -n "$NAMESPACE_AGENT" \
+  -o jsonpath='{.spec.nodeName}' 2>/dev/null || echo "")
+if [[ -n "$AGENT_NODE" ]]; then
+  NODE_TYPE=$(oc get node "$AGENT_NODE" -o jsonpath='{.metadata.labels.node\.kubernetes\.io/instance-type}' 2>/dev/null || echo "")
+  if echo "$NODE_TYPE" | grep -qi "metal"; then
+    pass "Agent on bare metal: $AGENT_NODE ($NODE_TYPE)"
+  else
+    warn "Agent node is NOT bare metal ($NODE_TYPE) — Kata requires /dev/kvm (ADR-017)"
+  fi
+fi
+
+KATA_MCP_STATUS=$(oc get mcp kata-oc -o jsonpath='{.status.conditions[?(@.type=="Updated")].status}' 2>/dev/null || echo "")
+if [[ "$KATA_MCP_STATUS" == "True" ]]; then
+  pass "MCP kata-oc: Updated=True"
+elif [[ -n "$KATA_MCP_STATUS" ]]; then
+  warn "MCP kata-oc: Updated=$KATA_MCP_STATUS"
+else
+  warn "MCP kata-oc not found"
+fi
+
+OSC_ERRORS=$(oc get pods -n openshift-sandboxed-containers-operator 2>/dev/null \
+  | grep -c "CreateContainerError\|CrashLoopBackOff\|Error" || echo "0")
+if [[ "$OSC_ERRORS" -gt 0 ]]; then
+  warn "osc-monitor pods failing ($OSC_ERRORS) — ADR-018 SELinux bug (non-blocking)"
+else
+  pass "No osc-monitor errors"
+fi
+
+echo ""
+
+# ── 9. Security Posture ──────────────────────────────────────
+
+echo "9. Security Posture"
 
 for NS_CHECK in "$NAMESPACE_INFERENCE" "$NAMESPACE_AGENT"; do
   NP_COUNT=$(oc get networkpolicy -n "$NS_CHECK" --no-headers 2>/dev/null | wc -l | tr -d ' ')

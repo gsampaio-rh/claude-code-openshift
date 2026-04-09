@@ -30,13 +30,14 @@ A plataforma AgentOps roda AI coding agents (Claude Code) no OpenShift com isola
 │  │  └─────────────────────────────────────────────────────────────────┘   │  │
 │  └────────────────────────────────────────────────────────────────────────┘  │
 │                                                                              │
-│  ┌─ Worker Nodes (general) ──────────────────────────────────────────────┐  │
+│  ┌─ Bare Metal Node (m5.metal · 96 vCPU · 384GB RAM · /dev/kvm) ────────┐  │
+│  │  ADR-017: Kata requer /dev/kvm — EC2 VMs regulares nao suportam      │  │
 │  │                                                                        │  │
 │  │  ┌─ ns: agent-sandboxes ───────────────────────────────────────────┐  │  │
 │  │  │                                                                  │  │  │
 │  │  │  ┌─ Deployment: claude-code-standalone (xN replicas) ────────┐  │  │  │
-│  │  │  │  ┌─ Kata MicroVM ──────────────────────────────────────┐  │  │  │  │
-│  │  │  │  │  Guest kernel (isolado do host)                     │  │  │  │  │
+│  │  │  │  ┌─ Kata MicroVM (runtimeClassName: kata) ────────────┐  │  │  │  │
+│  │  │  │  │  Guest kernel (isolado do host via QEMU/KVM)       │  │  │  │  │
 │  │  │  │  │  UBI9 + Node.js 22 + Claude Code CLI                │  │  │  │  │
 │  │  │  │  │  entrypoint.sh → sleep infinity (invoked via exec)  │  │  │  │  │
 │  │  │  │  │  claude-logged → NDJSON to oc logs                   │  │  │  │  │
@@ -193,7 +194,7 @@ flowchart TB
 
 | Componente | Tecnologia | Namespace |
 |---|---|---|
-| Runtime | Node.js 20 + Claude Code CLI | `agent-sandboxes` |
+| Runtime | Node.js 22 + Claude Code CLI | `agent-sandboxes` |
 | Modo standalone | Deployment (N replicas, `oc exec` / headless API) | `agent-sandboxes` |
 | Modo CDE | Embarcado no Coder workspace template | `agent-sandboxes` |
 | Config | ConfigMap compartilhado (env vars do agente) | `agent-sandboxes` |
@@ -232,7 +233,7 @@ O entrypoint (`entrypoint.sh`) loga banner de startup no stdout e faz `tail -F` 
 - **Fase 1:** Standalone → vLLM direto
 - **Fase 2:** Standalone → Guardrails → vLLM
 - **Fase 3:** Coder workspace herda mesma config via ConfigMap
-- **Fase 4:** Ambos migram pra Kata (`runtimeClassName: kata`)
+- **Fase 4:** ~~Migrar pra Kata~~ Concluido no Sprint 1 — bare metal requerido (ADR-017)
 - **Fase 5+:** SPIFFE identity, MCP Gateway, OTEL
 
 **ConfigMap compartilhado** (reusado por standalone e Coder templates):
@@ -252,9 +253,11 @@ data:
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
   CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS: "1"
   CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
-  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "16384"
+  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "8192"
   MAX_THINKING_TOKENS: "0"
 ```
+
+> `CLAUDE_CODE_MAX_OUTPUT_TOKENS=8192`: system prompt consome ~16K tokens; 16K + 16384 = 32769 — **1 token acima** do context de 32768. Com 8192: 16K + 8192 = ~24K, seguro. Ver ADR-017.
 
 > Ver [ADR-008](../adrs/008-claude-code-standalone-deploy.md) para o racional desta decisao.
 
@@ -277,7 +280,7 @@ data:
 5. Pod contem Claude Code pre-instalado + env vars configuradas
 
 **Workspace template inclui:**
-- Node.js 20 + Claude Code CLI
+- Node.js 22 + Claude Code CLI
 - Git + ferramentas de dev
 - Env vars: `ANTHROPIC_BASE_URL`, `MCP_URL`, `OTEL_EXPORTER_OTLP_ENDPOINT`
 - `runtimeClassName: kata`
@@ -289,16 +292,30 @@ data:
 
 | Componente | Tecnologia | Namespace |
 |---|---|---|
-| Operator | OpenShift Sandboxed Containers | `openshift-sandboxed-containers-operator` |
-| Runtime | Kata Containers + QEMU/Cloud Hypervisor | Nodes (kernel-level) |
+| Operator | OpenShift Sandboxed Containers 1.3.3 | `openshift-sandboxed-containers-operator` |
+| Runtime | Kata Containers + QEMU/KVM | Nodes bare metal (kernel-level) |
 | Config | KataConfig CRD | Cluster-scoped |
+| MCP | `kata-oc` (MachineConfigPool) | Cluster-scoped |
+
+**Requisito de infraestrutura (ADR-017):**
+
+Kata usa QEMU hypervisor que requer `/dev/kvm`. AWS EC2 VMs regulares (g6, m6a, c5, etc.) **nao expoe** nested virtualization — flag VMX/SVM = 0 e `/dev/kvm` ausente. **Bare metal instances** (`*.metal`) sao obrigatorias.
+
+| Instance | Tipo | `/dev/kvm` | Kata | Custo/h |
+|---|---|---|---|---|
+| g6e.4xlarge | VM | Nao | Nao | $1.86 |
+| m6a.4xlarge | VM | Nao | Nao | $0.69 |
+| m5.metal | Bare metal | Sim | Sim | $4.61 |
+| c5.metal | Bare metal | Sim | Sim | $4.08 |
+
+**Bug conhecido (ADR-018):** `osc-monitor` pods crasham com `write to /proc/self/attr/keycreate: Invalid argument` em OCP 4.20 — imagens RHEL 8 do operator 1.3.3 incompativeis com kernel RHEL 9. Nao afeta runtime Kata.
 
 **Modelo de isolamento:**
 
 ```mermaid
 flowchart TB
-    subgraph hostNode [Host Node - OpenShift Worker]
-        HostKernel[Host Kernel]
+    subgraph hostNode [Bare Metal Node - m5.metal]
+        HostKernel[Host Kernel + /dev/kvm]
         subgraph kataVM1 [Kata MicroVM 1]
             GuestKernel1[Guest Kernel]
             Container1[Claude Code Container]
@@ -307,8 +324,8 @@ flowchart TB
             GuestKernel2[Guest Kernel]
             Container2[Claude Code Container]
         end
-        HostKernel -.-> kataVM1
-        HostKernel -.-> kataVM2
+        HostKernel -.->|QEMU/KVM| kataVM1
+        HostKernel -.->|QEMU/KVM| kataVM2
     end
 ```
 
@@ -316,6 +333,7 @@ flowchart TB
 - `privileged: true` dentro da VM nao da acesso ao host
 - `privileged_without_host_devices=true` impede acesso a devices do host
 - NetworkPolicy restringe egress: so MCP Gateway, Guardrails, DNS, OTEL Collector
+- `nodeSelector: node.kubernetes.io/instance-type: m5.metal` garante scheduling em bare metal
 
 ### 3.3 Identity Layer (Kagenti + SPIFFE)
 
@@ -567,7 +585,7 @@ Configuradas via ConfigMap `claude-code-config` no namespace `agent-sandboxes`. 
 | `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `1` | `1` | Impede conexoes de startup ao api.anthropic.com (issue #36998) |
 | `CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS` | `1` | `1` | Evita falha no modo interativo em pods sem internet |
 | `CLAUDE_CODE_ATTRIBUTION_HEADER` | `0` | `0` | Desabilita hash por-request que quebra prefix caching no vLLM |
-| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `16384` | `16384` | System prompt do Claude Code consome ~12K tokens; 16384 output cabe no context de 32K (L40S, ADR-016) |
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `8192` | `8192` | System prompt consome ~16K tokens; 8192 + 16K = ~24K, seguro no context de 32K. 16384 estourava (ADR-017) |
 | `MAX_THINKING_TOKENS` | `0` | `0` | Desabilitado para Qwen |
 | `CLAUDE_CODE_ENABLE_TELEMETRY` | N/A | `1` | Habilita OTEL nativo do Claude Code |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | N/A | `http://otel-collector.observability.svc:4317` | Traces |
@@ -593,4 +611,6 @@ Ver [ADRs](../adrs/) para o racional de cada decisao.
 | ADR-013 | NetworkPolicy fixes para OVN-Kubernetes (DNS ClusterIP, build pods) |
 | ADR-014 | PVC para model cache (nao emptyDir) — restart sem re-download |
 | ADR-015 | Structured logging via entrypoint + claude-logged wrapper (NDJSON) |
-| ADR-016 | GPU scaling L4→L40S: context 32K, CUDA graphs, output 16K (ADR-016) |
+| ADR-016 | GPU scaling L4→L40S: context 32K, CUDA graphs, output 16K |
+| ADR-017 | Kata requer bare metal (/dev/kvm ausente em EC2 VMs). m5.metal provisionado. max_output_tokens corrigido 16384→8192. |
+| ADR-018 | Bug SELinux: osc-monitor crashloop no OCP 4.20 (operator 1.3.3 RHEL 8 vs kernel RHEL 9). Nao afeta runtime. |

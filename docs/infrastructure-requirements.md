@@ -24,8 +24,9 @@ Para rodar Claude Code + vLLM (Qwen 2.5 14B) no OpenShift de forma confortavel:
 |---|---|---|---|
 | Versao OpenShift | 4.16 | 4.18+ | APIs estaveis, Pod Security Standards, MachineSet |
 | Control plane | 3x nodes (managed) | 3x nodes | Gerenciado pelo cloud provider (ROSA, ARO, etc.) |
-| Workers gerais | 2x (4 vCPU, 16GB RAM) | 3x (8 vCPU, 32GB RAM) | Pods de agente, Coder, observabilidade, build pods |
+| Workers gerais | 2x (4 vCPU, 16GB RAM) | 3x (8 vCPU, 32GB RAM) | Pods de agente (sem Kata), Coder, observabilidade, build pods |
 | GPU worker | 1x (ver secao GPU) | 1x dedicado com taint | Node exclusivo pra inferencia |
+| Bare metal worker | 1x m5.metal (se usar Kata) | 1x m5.metal | Kata requer /dev/kvm — EC2 VMs nao suportam (ADR-017) |
 | Acesso | `cluster-admin` | `cluster-admin` | Necessario pra instalar operators, criar MachineSet, configurar RBAC |
 
 ### Workers gerais — sizing
@@ -69,9 +70,9 @@ O modelo (Qwen 2.5 14B Instruct FP8-dynamic) usa ~15GB de VRAM. O restante vai p
 | Tier | GPU | VRAM | Instance (AWS) | `max_model_len` | `max_output_tokens` | CUDA graphs | Custo/h (on-demand) | Veredicto |
 |---|---|---|---|---|---|---|---|---|
 | **Minimo** | L4 | 24GB | g6.4xlarge | 24,576 | 2,048 | Nao (`enforce-eager`) | $1.32 | Funciona, mas apertado. Output limitado a 2K tokens. |
-| **Confortavel** | L40S | 48GB | g6e.4xlarge | 32,768 | 16,384 | Sim | $1.86 | Context completo do modelo. Recomendado. |
-| **Premium** | A100 40GB | 40GB | p4d.xlarge* | 32,768 | 16,384 | Sim | $3.09+ | Overkill pra 14B. Justifica so com modelo maior. |
-| **Overkill** | A100 80GB / H100 | 80GB | p4d / p5 | 32,768+ | 16,384+ | Sim | $5.12+ | So faz sentido com Qwen 72B ou multi-GPU. |
+| **Confortavel** | L40S | 48GB | g6e.4xlarge | 32,768 | 8,192 | Sim | $1.86 | Context completo do modelo. Recomendado. System prompt ~16K + 8K output = 24K < 32K. |
+| **Premium** | A100 40GB | 40GB | p4d.xlarge* | 32,768 | 8,192 | Sim | $3.09+ | Overkill pra 14B. Justifica so com modelo maior. |
+| **Overkill** | A100 80GB / H100 | 80GB | p4d / p5 | 32,768+ | 8,192+ | Sim | $5.12+ | So faz sentido com Qwen 72B ou multi-GPU. |
 
 > **Recomendacao: NVIDIA L40S (48GB)** — melhor custo-beneficio pra Qwen 2.5 14B.
 
@@ -131,7 +132,7 @@ O modelo (Qwen 2.5 14B Instruct FP8-dynamic) usa ~15GB de VRAM. O restante vai p
 
 | Operator | Fase | Necessidade |
 |---|---|---|
-| OpenShift Sandboxed Containers (Kata) | 3 | Isolamento microVM por agente |
+| OpenShift Sandboxed Containers (Kata) | 1 (validado) | Isolamento microVM por agente. **Requer bare metal** (ADR-017). Bug SELinux em OCP 4.20 (ADR-018). |
 | Red Hat OpenShift AI (RHOAI) | 2 | TrustyAI Guardrails |
 | OpenShift Serverless | 2 | KServe (se usar no futuro) |
 | OpenShift Pipelines (Tekton) | 5 | CI/CD safety scans |
@@ -182,8 +183,15 @@ O modelo (Qwen 2.5 14B Instruct FP8-dynamic) usa ~15GB de VRAM. O restante vai p
     [ ] registry.access.redhat.com (build image)
 [ ] Image registry interno funcional (oc registry info)
 [ ] Workers gerais com pelo menos 4Gi livres para build pods
-[ ] Nested virtualization (se planeja usar Kata Containers)
+[ ] Bare metal node (se planeja usar Kata Containers)
+    [ ] Instance type *.metal (m5.metal, c5.metal)
+    [ ] /dev/kvm presente no node
+    [ ] VMX/SVM CPU flags > 0
+    [ ] KataConfig CR criado e MCP kata-oc updated
+    [ ] RuntimeClass 'kata' existe
 ```
+
+> **Nota Kata (ADR-017):** EC2 VMs regulares (g6, m6a, c5, etc.) **nao suportam** Kata porque nao expoe `/dev/kvm`. Somente instances `*.metal` funcionam. Se bare metal nao estiver disponivel na AZ desejada, considere outra AZ ou instance family. `c5.metal` frequentemente tem `InsufficientInstanceCapacity`; `m5.metal` eh mais confiavel.
 
 ---
 
@@ -194,8 +202,10 @@ O modelo (Qwen 2.5 14B Instruct FP8-dynamic) usa ~15GB de VRAM. O restante vai p
 | Control plane | Managed (ROSA/OCP) | 3 | incluso* | ~$500* |
 | Workers gerais | m6i.2xlarge (8 vCPU, 32GB) | 2 | $0.384 | ~$553 |
 | GPU worker | g6e.4xlarge (16 vCPU, 128GB, 1x L40S) | 1 | $1.86 | ~$1,339 |
+| Bare metal (Kata) | m5.metal (96 vCPU, 384GB) | 1 | $4.61 | ~$3,319 |
 | Storage (EBS gp3) | ~200GB total | — | — | ~$16 |
-| **Total estimado** | | | | **~$2,400/mes** |
+| **Total estimado (com Kata)** | | | | **~$5,700/mes** |
+| **Total estimado (sem Kata)** | | | | **~$2,400/mes** |
 
 > *Control plane gerenciado varia por provider. Com spot/reserved instances, GPU cai ~60%.
 
@@ -265,8 +275,18 @@ O modelo (Qwen 2.5 14B Instruct FP8-dynamic) usa ~15GB de VRAM. O restante vai p
 │  │  └────────────────┘  │   │  └──────────────────────────┘  │  │
 │  └──────────────────────┘   └────────────────────────────────┘  │
 │                                                                 │
-│  Operators: GPU Operator, NFD, cert-manager                     │
-│  Storage: gp3-csi (~100Gi total PVCs)                           │
-│  Custo: ~$2,400/mes (on-demand) | ~$1,000/mes (optimizado)     │
+│  ┌──────────────────────┐                                       │
+│  │  Bare Metal (Kata)   │   Operators: GPU, NFD, cert-manager,  │
+│  │  1x m5.metal         │             Sandboxed Containers      │
+│  │  96 vCPU, 384GB RAM  │                                       │
+│  │  /dev/kvm → QEMU     │   Storage: gp3-csi (~100Gi PVCs)     │
+│  │                      │                                       │
+│  │  ┌────────────────┐  │   Custo (com Kata):                   │
+│  │  │ Claude Code    │  │     ~$5,700/mes (on-demand)           │
+│  │  │ Kata MicroVM   │  │     ~$2,500/mes (optimizado)          │
+│  │  └────────────────┘  │                                       │
+│  └──────────────────────┘   Custo (sem Kata):                   │
+│                               ~$2,400/mes (on-demand)           │
+│                               ~$1,000/mes (optimizado)          │
 └─────────────────────────────────────────────────────────────────┘
 ```

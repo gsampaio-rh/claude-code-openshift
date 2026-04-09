@@ -1,0 +1,139 @@
+{
+  "apiVersion": "machine.openshift.io/v1beta1",
+  "kind": "MachineSet",
+  "metadata": {
+    "name": "ocp-dgpmb-kata-baremetal-us-east-2c",
+    "namespace": "openshift-machine-api",
+    "labels": {
+      "machine.openshift.io/cluster-api-cluster": "ocp-dgpmb"
+    }
+  },
+  "spec": {
+    "replicas": 1,
+    "selector": {
+      "matchLabels": {
+        "machine.openshift.io/cluster-api-cluster": "ocp-dgpmb",
+        "machine.openshift.io/cluster-api-machineset": "ocp-dgpmb-kata-baremetal-us-east-2c"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "machine.openshift.io/cluster-api-cluster": "ocp-dgpmb",
+          "machine.openshift.io/cluster-api-machine-role": "worker",
+          "machine.openshift.io/cluster-api-machine-type": "worker",
+          "machine.openshift.io/cluster-api-machineset": "ocp-dgpmb-kata-baremetal-us-east-2c"
+        }
+      },
+      "spec": {
+        "lifecycleHooks": {},
+        "metadata": {
+          "labels": {
+            "node-role.kubernetes.io/worker": "",
+            "node-role.kubernetes.io/kata-baremetal": ""
+          }
+        },
+        "providerSpec": {
+          "value": {
+            "ami": {
+              "id": "ami-021a620474c1cd2fe"
+            },
+            "apiVersion": "machine.openshift.io/v1beta1",
+            "blockDevices": [
+              {
+                "ebs": {
+                  "encrypted": true,
+                  "iops": 0,
+                  "kmsKey": {
+                    "arn": ""
+                  },
+                  "volumeSize": 200,
+                  "volumeType": "gp3"
+                }
+              }
+            ],
+            "capacityReservationId": "",
+            "credentialsSecret": {
+              "name": "aws-cloud-credentials"
+            },
+            "deviceIndex": 0,
+            "iamInstanceProfile": {
+              "id": "ocp-dgpmb-worker-profile"
+            },
+            "instanceType": "m5.metal",
+            "kind": "AWSMachineProviderConfig",
+            "metadata": {
+              "creationTimestamp": null
+            },
+            "metadataServiceOptions": {},
+            "placement": {
+              "availabilityZone": "us-east-2c",
+              "region": "us-east-2"
+            },
+            "securityGroups": [
+              {
+                "filters": [
+                  {
+                    "name": "tag:Name",
+                    "values": [
+                      "ocp-dgpmb-node"
+                    ]
+                  }
+                ]
+              },
+              {
+                "filters": [
+                  {
+                    "name": "tag:Name",
+                    "values": [
+                      "ocp-dgpmb-lb"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "subnet": {
+              "filters": [
+                {
+                  "name": "tag:Name",
+                  "values": [
+                    "ocp-dgpmb-subnet-private-us-east-2c"
+                  ]
+                }
+              ]
+            },
+            "tags": [
+              {
+                "name": "kubernetes.io/cluster/ocp-dgpmb",
+                "value": "owned"
+              },
+              {
+                "name": "Stack",
+                "value": "project openshift-cluster-gdn7x"
+              },
+              {
+                "name": "config",
+                "value": "openshift-cluster"
+              },
+              {
+                "name": "guid",
+                "value": "gdn7x"
+              },
+              {
+                "name": "owner",
+                "value": "unknown"
+              },
+              {
+                "name": "uuid",
+                "value": "6349c6ee-97bc-5b61-823a-20edac90b7c7"
+              }
+            ],
+            "userDataSecret": {
+              "name": "worker-user-data"
+            }
+          }
+        }
+      }
+    }
+  }
+}

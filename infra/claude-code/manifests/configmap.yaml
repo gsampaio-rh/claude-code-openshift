@@ -31,7 +31,7 @@ data:
   # Disables per-request hash in system prompt that defeats vLLM prefix caching
   CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
   # Token limits tuned for Qwen 14B context window
-  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "16384"
+  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "8192"
   MAX_THINKING_TOKENS: "0"
   # Phase 7: enable native OTEL (Claude Code has built-in support)
   # CLAUDE_CODE_ENABLE_TELEMETRY: "1"

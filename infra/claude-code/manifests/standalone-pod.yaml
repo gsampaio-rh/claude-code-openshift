@@ -22,8 +22,9 @@ spec:
         kagenti.io/type: agent
     spec:
       serviceAccountName: claude-code-agent
-      # Phase 4: uncomment to run inside Kata microVM
-      # runtimeClassName: kata
+      runtimeClassName: kata
+      nodeSelector:
+        node.kubernetes.io/instance-type: m5.metal
       containers:
         - name: claude-code
           # Built via: oc start-build claude-code-agent --from-dir=infra/claude-code -n agent-sandboxes

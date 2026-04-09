@@ -14,6 +14,7 @@ Options:
   --skip-cluster    Skip cluster setup (namespaces, RBAC, quotas, operators)
   --skip-vllm       Skip vLLM deployment
   --skip-agent      Skip Claude Code agent build+deploy
+  --skip-kata       Skip Kata installation+validation
   --skip-verify     Skip verification steps
   --dry-run         Print what would be executed without running
   -h, --help        Show this help
@@ -22,13 +23,14 @@ Steps executed (in order):
   1. Cluster pre-flight check
   2. Cluster setup (namespaces, RBAC, quotas, network policies)
   3. Operator installation
-  4. vLLM namespace setup + GPU validation
-  5. vLLM model deployment
-  6. vLLM validation
-  7. Claude Code agent image build
-  8. Claude Code agent deployment
-  9. Claude Code verification
-  10. End-to-end test
+  4. Kata Containers install + validation
+  5. vLLM namespace setup + GPU validation
+  6. vLLM model deployment
+  7. vLLM validation
+  8. Claude Code agent image build
+  9. Claude Code agent deployment
+  10. Claude Code verification
+  11. End-to-end test
 
 EOF
   exit 0
@@ -37,6 +39,7 @@ EOF
 SKIP_CLUSTER=false
 SKIP_VLLM=false
 SKIP_AGENT=false
+SKIP_KATA=false
 SKIP_VERIFY=false
 DRY_RUN=false
 
@@ -45,6 +48,7 @@ for arg in "$@"; do
     --skip-cluster) SKIP_CLUSTER=true ;;
     --skip-vllm) SKIP_VLLM=true ;;
     --skip-agent) SKIP_AGENT=true ;;
+    --skip-kata) SKIP_KATA=true ;;
     --skip-verify) SKIP_VERIFY=true ;;
     --dry-run) DRY_RUN=true ;;
     -h|--help) usage ;;
@@ -101,6 +105,23 @@ else
   skip_step "Cluster pre-flight check"
   skip_step "Cluster setup"
   skip_step "Operator installation"
+fi
+
+# ── Kata ─────────────────────────────────────────────────────
+
+if [[ "$SKIP_KATA" == "false" ]]; then
+  run_step "Kata Containers install" \
+    bash "$INFRA_DIR/cluster/scripts/03-install-kata.sh"
+
+  if [[ "$SKIP_VERIFY" == "false" ]]; then
+    run_step "Kata validation" \
+      bash "$INFRA_DIR/cluster/scripts/04-validate-kata.sh"
+  else
+    skip_step "Kata validation"
+  fi
+else
+  skip_step "Kata install"
+  skip_step "Kata validation"
 fi
 
 # ── vLLM ─────────────────────────────────────────────────────

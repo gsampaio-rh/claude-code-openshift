@@ -1,6 +1,6 @@
 # ADR-001: Kata Containers for Agent Isolation
 
-**Status:** Accepted
+**Status:** Accepted (updated: see ADR-017 for bare metal requirement on AWS EC2)
 **Date:** 2026-04-08
 **Deciders:** Platform Engineering
 
