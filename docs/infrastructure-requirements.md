@@ -39,8 +39,7 @@ Os workers gerais hospedam tudo exceto o vLLM:
 | Claude Code build pod | 500m | 1Gi | 2 | 4Gi |
 | Coder control plane | 500m | 512Mi | 2 | 2Gi |
 | PostgreSQL (Coder) | 500m | 1Gi | 2 | 4Gi |
-| OTEL Collector | 200m | 256Mi | 1 | 1Gi |
-| MLflow | 500m | 512Mi | 2 | 4Gi |
+| MLflow | 250m | 512Mi | 2 | 2Gi |
 | TrustyAI Guardrails | 500m | 512Mi | 2 | 4Gi |
 | MCP Gateway | 200m | 256Mi | 1 | 2Gi |
 | **Total (stack completa)** | **~3 vCPU** | **~4.3Gi** | **~13 vCPU** | **~23Gi** |
@@ -269,7 +268,7 @@ O modelo (Qwen 2.5 14B Instruct FP8-dynamic) usa ~15GB de VRAM. O restante vai p
 │  │  │ pods (agents)  │──│───│─>│ vLLM + Qwen 2.5 14B FP8 │  │  │
 │  │  └────────────────┘  │   │  │ max_model_len=32768      │  │  │
 │  │  ┌────────────────┐  │   │  │ gpu-mem-util=0.90        │  │  │
-│  │  │ Coder, OTEL,   │  │   │  └──────────────────────────┘  │  │
+│  │  │ Coder, MLflow,  │  │   │  └──────────────────────────┘  │  │
 │  │  │ Guardrails,    │  │   │  ┌──────────────────────────┐  │  │
 │  │  │ MCP Gateway    │  │   │  │ PVC 30Gi (model cache)   │  │  │
 │  │  └────────────────┘  │   │  └──────────────────────────┘  │  │

@@ -53,7 +53,7 @@ A plataforma AgentOps roda AI coding agents (Claude Code) no OpenShift com isola
 │  │  │  │  │  spiffe-helper sidecar · kagenti-client sidecar     │  │  │  │  │
 │  │  │  │  │  ──→ Guardrails → vLLM                              │  │  │  │  │
 │  │  │  │  │  ──→ MCP Gateway (tools governados)                 │  │  │  │  │
-│  │  │  │  │  ──→ OTEL Collector (traces)                        │  │  │  │  │
+│  │  │  │  │  ──→ MLflow (traces via mlflow autolog claude)       │  │  │  │  │
 │  │  │  │  └─────────────────────────────────────────────────────┘  │  │  │  │
 │  │  │  └───────────────────────────────────────────────────────────┘  │  │  │
 │  │  └──────────────────────────────────────────────────────────────────┘  │  │
@@ -65,9 +65,10 @@ A plataforma AgentOps roda AI coding agents (Claude Code) no OpenShift com isola
 │  │  └─────────────────────────┘  └────────────────────────────────────┘  │  │
 │  │                                                                        │  │
 │  │  ┌─ ns: observability ────┐  ┌─ ns: agentops ─────────────────────┐  │  │
-│  │  │  OTEL Collector        │  │  Kagenti Operator                   │  │  │
-│  │  │  MLflow Tracking       │  │  SPIRE Server (SVID X.509)          │  │  │
-│  │  └─────────────────────────┘  │  Keycloak (token exchange)         │  │  │
+│  │  │  MLflow Tracking v3    │  │  Kagenti Operator                   │  │  │
+│  │  │                        │  │  SPIRE Server (SVID X.509)          │  │  │
+│  │  │                        │  │  Keycloak (token exchange)         │  │  │
+│  │  └─────────────────────────┘  │                                    │  │  │
 │  │                                └────────────────────────────────────┘  │  │
 │  │                                                                        │  │
 │  │  ┌─ ns: cicd ─────────────┐                                           │  │
@@ -153,9 +154,7 @@ flowchart TB
         end
 
         subgraph observability [Observability Layer]
-            OTELCollector[OTEL Collector]
             MLflowServer[MLflow Tracking Server]
-            OTELCollector --> MLflowServer
         end
 
         subgraph cicd [CI/CD Layer]
@@ -183,7 +182,7 @@ flowchart TB
 
     KataVM1 -->|"ANTHROPIC_BASE_URL"| GuardrailsOrch
     KataVM1 -->|"MCP_URL"| MCPGateway
-    KataVM1 -->|"OTEL_ENDPOINT"| OTELCollector
+    KataVM1 -->|"MLFLOW_TRACKING_URI"| MLflowServer
 ```
 
 ## 3. Camadas da arquitetura
@@ -234,7 +233,7 @@ O entrypoint (`entrypoint.sh`) loga banner de startup no stdout e faz `tail -F` 
 - **Fase 2:** Standalone → Guardrails → vLLM
 - **Fase 3:** Coder workspace herda mesma config via ConfigMap
 - **Fase 4:** ~~Migrar pra Kata~~ Concluido no Sprint 1 — bare metal requerido (ADR-017)
-- **Fase 5+:** SPIFFE identity, MCP Gateway, OTEL
+- **Fase 5+:** SPIFFE identity, MCP Gateway, OTEL (re-enable when needed)
 
 **ConfigMap compartilhado** (reusado por standalone e Coder templates):
 
@@ -282,7 +281,7 @@ data:
 **Workspace template inclui:**
 - Node.js 22 + Claude Code CLI
 - Git + ferramentas de dev
-- Env vars: `ANTHROPIC_BASE_URL`, `MCP_URL`, `OTEL_EXPORTER_OTLP_ENDPOINT`
+- Env vars: `ANTHROPIC_BASE_URL`, `MCP_URL`, `MLFLOW_TRACKING_URI`
 - `runtimeClassName: kata`
 - Labels: `kagenti.io/type: agent`
 
@@ -332,7 +331,7 @@ flowchart TB
 - Cada pod roda dentro de uma VM com kernel proprio
 - `privileged: true` dentro da VM nao da acesso ao host
 - `privileged_without_host_devices=true` impede acesso a devices do host
-- NetworkPolicy restringe egress: so MCP Gateway, Guardrails, DNS, OTEL Collector
+- NetworkPolicy restringe egress: so MCP Gateway, Guardrails, DNS, MLflow
 - `nodeSelector: node.kubernetes.io/instance-type: m5.metal` garante scheduling em bare metal
 
 ### 3.3 Identity Layer (Kagenti + SPIFFE)
@@ -473,29 +472,40 @@ sequenceDiagram
 - Token exchange: tokens broad sao trocados por tokens scoped por backend (RFC 8693)
 - Credenciais de MCP servers ficam no Vault/Secrets, nunca no agente
 
-### 3.6 Observability Layer (OTEL + MLflow)
+### 3.6 Observability Layer (MLflow)
 
 **Responsabilidade:** Capturar traces de todas as acoes do agente.
 
-| Componente | Tecnologia | Namespace |
-|---|---|---|
-| Collector | OpenTelemetry Collector | `observability` |
-| Tracking | MLflow Tracking Server | `observability` |
-| Storage | S3 / PV | `observability` |
+| Componente | Tecnologia | Namespace | ADR |
+|---|---|---|---|
+| Tracking | MLflow Tracking Server v3.10.1 | `observability` | [ADR-019](../adrs/019-observability-otel-mlflow-grafana.md) |
+| Storage | SQLite + PVC (PoC); PostgreSQL + S3 (prod) | `observability` | — |
 
-**Dados capturados:**
+> OTEL Collector, Prometheus, and Grafana are disabled for the PoC. Manifests kept under `observability/{otel,prometheus,grafana}/` for future re-enablement. See ADR-019 status update.
+
+**Data flow:**
+
+```mermaid
+flowchart LR
+    Agent["Claude Code"] -->|"mlflow autolog claude"| MLflow["MLflow (traces + experiments)"]
+```
+
+**Dados capturados (via `mlflow autolog claude`):**
 - Prompts enviados ao modelo
 - Reasoning steps
 - Tool invocations (qual tool, params, resultado)
 - Tokens consumidos (input, output, cache)
 - Latencia por step
-- Arquivos modificados, linhas adicionadas/removidas
-- Acceptance rate de sugestoes
+- Conversation flow estruturado
 
 **Env vars no agente:**
 ```
-OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.observability.svc:4317
+MLFLOW_TRACKING_URI=http://mlflow-tracking.observability.svc.cluster.local:5000
+MLFLOW_EXPERIMENT_NAME=claude-code-agents
 ```
+
+**Routes (external access):**
+- MLflow UI: `https://mlflow-tracking-observability.apps.<cluster>/`
 
 ### 3.7 CI/CD Layer (Tekton + Garak)
 
@@ -535,7 +545,7 @@ flowchart TB
         MCPPods[MCP Gateway + Servers]
     end
     subgraph ns_observ [observability]
-        ObservPods[OTEL + MLflow]
+        ObservPods[MLflow Tracking]
     end
     subgraph ns_agentops [agentops]
         KagentiPods[Kagenti + SPIRE]
@@ -547,7 +557,7 @@ flowchart TB
     CoderPods -->|"provisiona"| AgentPods
     AgentPods -->|"ANTHROPIC_BASE_URL"| InferencePods
     AgentPods -->|"MCP_URL"| MCPPods
-    AgentPods -->|"OTEL_ENDPOINT"| ObservPods
+    AgentPods -->|"MLFLOW_TRACKING_URI"| ObservPods
     KagentiPods -.->|"injeta sidecars"| AgentPods
     TektonPods -->|"scan"| InferencePods
 ```
@@ -558,7 +568,7 @@ flowchart TB
 |---|---|---|---|
 | `agent-sandboxes` | `inference` (Guardrails) | 8080 | HTTPS |
 | `agent-sandboxes` | `mcp-gateway` | 8443 | HTTPS |
-| `agent-sandboxes` | `observability` (OTEL) | 4317 | gRPC |
+| `agent-sandboxes` | `observability` (MLflow) | 5000 | HTTP |
 | `agent-sandboxes` | `kube-dns` (openshift-dns) | 53, 5353 | UDP/TCP (ADR-013: CoreDNS escuta em 5353, OVN-K avalia post-DNAT) |
 | `agent-sandboxes` | K8s API server | 443, 6443 | TCP (service account auth) |
 | `agent-sandboxes` | Internet (GitHub, npm) | 443 | HTTPS (egress controlado) |
@@ -587,8 +597,8 @@ Configuradas via ConfigMap `claude-code-config` no namespace `agent-sandboxes`. 
 | `CLAUDE_CODE_ATTRIBUTION_HEADER` | `0` | `0` | Desabilita hash por-request que quebra prefix caching no vLLM |
 | `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `8192` | `8192` | System prompt consome ~16K tokens; 8192 + 16K = ~24K, seguro no context de 32K. 16384 estourava (ADR-017) |
 | `MAX_THINKING_TOKENS` | `0` | `0` | Desabilitado para Qwen |
-| `CLAUDE_CODE_ENABLE_TELEMETRY` | N/A | `1` | Habilita OTEL nativo do Claude Code |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | N/A | `http://otel-collector.observability.svc:4317` | Traces |
+| `MLFLOW_TRACKING_URI` | `http://mlflow-tracking.observability.svc.cluster.local:5000` | Same | MLflow trace storage (`mlflow autolog claude`) |
+| `MLFLOW_EXPERIMENT_NAME` | `claude-code-agents` | `claude-code-agents` | Experiment grouping |
 
 ## 6. Decisoes arquiteturais
 
@@ -614,3 +624,4 @@ Ver [ADRs](../adrs/) para o racional de cada decisao.
 | ADR-016 | GPU scaling L4→L40S: context 32K, CUDA graphs, output 16K |
 | ADR-017 | Kata requer bare metal (/dev/kvm ausente em EC2 VMs). m5.metal provisionado. max_output_tokens corrigido 16384→8192. |
 | ADR-018 | Bug SELinux: osc-monitor crashloop no OCP 4.20 (operator 1.3.3 RHEL 8 vs kernel RHEL 9). Nao afeta runtime. |
+| ADR-019 | Observability: MLflow v3 with native `mlflow autolog claude` (simplified from OTEL+Grafana). See ADR-019 status update. |

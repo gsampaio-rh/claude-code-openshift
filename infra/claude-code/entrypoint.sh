@@ -6,6 +6,18 @@ LOG_FILE="$LOG_DIR/claude.jsonl"
 mkdir -p "$LOG_DIR"
 touch "$LOG_FILE"
 
+# ── MLflow tracing setup ─────────────────────────────────────
+MLFLOW_TRACING="disabled"
+if [[ -n "${MLFLOW_TRACKING_URI:-}" ]] && command -v mlflow &>/dev/null; then
+  MLFLOW_ARGS=(-u "$MLFLOW_TRACKING_URI")
+  [[ -n "${MLFLOW_EXPERIMENT_NAME:-}" ]] && MLFLOW_ARGS+=(-n "$MLFLOW_EXPERIMENT_NAME")
+  if mlflow autolog claude "${MLFLOW_ARGS[@]}" 2>/dev/null; then
+    MLFLOW_TRACING="enabled → $MLFLOW_TRACKING_URI"
+  else
+    MLFLOW_TRACING="failed (check mlflow autolog claude --status)"
+  fi
+fi
+
 echo "============================================================"
 echo " Claude Code Agent — Standalone Pod"
 echo "============================================================"
@@ -14,6 +26,7 @@ echo "  Version:    $(claude --version 2>/dev/null || echo 'not found')"
 echo "  Base URL:   ${ANTHROPIC_BASE_URL:-not set}"
 echo "  Model:      ${ANTHROPIC_DEFAULT_SONNET_MODEL:-not set}"
 echo "  Max Output: ${CLAUDE_CODE_MAX_OUTPUT_TOKENS:-default}"
+echo "  MLflow:     $MLFLOW_TRACING"
 echo "  Log Dir:    $LOG_DIR"
 echo "  Started:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo ""

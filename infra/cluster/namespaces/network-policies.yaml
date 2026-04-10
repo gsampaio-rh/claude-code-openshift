@@ -62,15 +62,13 @@ spec:
       ports:
         - port: 8443
           protocol: TCP
-    # OTEL Collector
+    # Observability: MLflow Tracking (mlflow autolog claude)
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: observability
       ports:
-        - port: 4317
-          protocol: TCP
-        - port: 4318
+        - port: 5000
           protocol: TCP
     # External registries (GitHub, npm) — controlled egress
     - to:
@@ -190,3 +188,72 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: agentops
+---
+# Observability namespace: allow MLflow ingress from agent-sandboxes and inference
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: observability-allow-ingress
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Intra-namespace communication
+    - from:
+        - podSelector: {}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: agent-sandboxes
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: inference
+      ports:
+        - port: 5000
+          protocol: TCP
+    # UI access from OpenShift ingress controller (Routes)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+---
+# Observability namespace: egress restricted to DNS + internal cluster
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: observability-egress
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+        - port: 5353
+          protocol: UDP
+        - port: 5353
+          protocol: TCP
+    # Internal cluster communication (OTEL → MLflow, Grafana → Grafana)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+    # K8s API server
+    - to:
+        - ipBlock:
+            cidr: 172.30.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP

@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INFRA_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$INFRA_DIR/.." && pwd)"
 
 usage() {
   cat <<EOF
@@ -15,6 +16,7 @@ Options:
   --skip-vllm       Skip vLLM deployment
   --skip-agent      Skip Claude Code agent build+deploy
   --skip-guardrails Skip Guardrails (TrustyAI) deployment
+  --skip-observability Skip Observability (MLflow) deployment
   --skip-kata       Skip Kata installation+validation
   --skip-verify     Skip verification steps
   --dry-run         Print what would be executed without running
@@ -31,10 +33,12 @@ Steps executed (in order):
   8. Claude Code agent image build
   9. Claude Code agent deployment
   10. Claude Code verification
-  11. Guardrails prerequisite check
-  12. Guardrails deployment
-  13. Guardrails verification
-  14. End-to-end test
+  11. Observability deployment (MLflow)
+  12. Observability verification
+  13. Guardrails prerequisite check
+  14. Guardrails deployment
+  15. Guardrails verification
+  16. End-to-end test
 
 EOF
   exit 0
@@ -44,6 +48,7 @@ SKIP_CLUSTER=false
 SKIP_VLLM=false
 SKIP_AGENT=false
 SKIP_GUARDRAILS=false
+SKIP_OBSERVABILITY=false
 SKIP_KATA=false
 SKIP_VERIFY=false
 DRY_RUN=false
@@ -54,6 +59,7 @@ for arg in "$@"; do
     --skip-vllm) SKIP_VLLM=true ;;
     --skip-agent) SKIP_AGENT=true ;;
     --skip-guardrails) SKIP_GUARDRAILS=true ;;
+    --skip-observability) SKIP_OBSERVABILITY=true ;;
     --skip-kata) SKIP_KATA=true ;;
     --skip-verify) SKIP_VERIFY=true ;;
     --dry-run) DRY_RUN=true ;;
@@ -178,6 +184,23 @@ else
   skip_step "Claude Code build"
   skip_step "Claude Code deploy"
   skip_step "Claude Code verification"
+fi
+
+# ── Observability ─────────────────────────────────────────────
+
+if [[ "$SKIP_OBSERVABILITY" == "false" ]]; then
+  run_step "Observability deployment (MLflow)" \
+    bash "$PROJECT_ROOT/observability/scripts/01-deploy-observability.sh"
+
+  if [[ "$SKIP_VERIFY" == "false" ]]; then
+    run_step "Observability verification" \
+      bash "$PROJECT_ROOT/observability/scripts/99-verify.sh"
+  else
+    skip_step "Observability verification"
+  fi
+else
+  skip_step "Observability deployment"
+  skip_step "Observability verification"
 fi
 
 # ── Guardrails ────────────────────────────────────────────────

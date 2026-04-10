@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-tracking-store
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: mlflow-tracking
+    app.kubernetes.io/component: telemetry
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-csi
+  resources:
+    requests:
+      storage: 10Gi

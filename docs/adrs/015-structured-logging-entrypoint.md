@@ -49,5 +49,5 @@ Fields useful for observability: `session_id`, `duration_ms`, `input_tokens`, `o
 - `oc logs` and OpenShift console now show startup info and all `claude-logged` invocations
 - Plain `claude -p` still works but doesn't log to container stdout (use for quick tests)
 - NDJSON format is parseable by any log aggregation stack without custom parsers
-- Phase 7 (OTEL) will add native telemetry; this logging is complementary, not a replacement
+- Phase 7 observability (MLflow `mlflow autolog claude`) captures rich traces; this logging is complementary, not a replacement
 - Log file grows unbounded in `/tmp/claude-logs/` — acceptable for PoC, production needs rotation

@@ -30,7 +30,7 @@ O PoC deve provar que eh possivel:
 3. Servir modelos localmente sem custo de API (vLLM)
 4. Interceptar inputs/outputs com guardrails (TrustyAI/NeMo)
 5. Governar acesso a tools por identidade (MCP Gateway)
-6. Rastrear todas as acoes do agente (MLflow/OTEL)
+6. Rastrear todas as acoes do agente (MLflow)
 7. Scanear modelos antes de deploy (Garak/Tekton)
 8. Dar aos devs um CDE com Claude Code pre-configurado (Coder)
 
@@ -185,10 +185,11 @@ Capturar traces de tudo que os agentes fazem.
 **Deliverable:** Dashboard MLflow com traces de tool calls, tokens, reasoning.
 
 **Tasks:**
-- Deploy OTEL Collector
-- Configurar Claude Code para emitir OTEL traces
 - Deploy MLflow Tracking Server
-- Criar dashboards: tokens/hora, tool calls/agente, latencia
+- Configurar `mlflow autolog claude` no Claude Code (traces nativos)
+- Criar experiment `claude-code-agents` com traces de tool calls, tokens, latencia
+- ~~Deploy OTEL Collector~~ (deferred — MLflow autolog provides richer traces, see ADR-019)
+- ~~Criar dashboards Grafana~~ (deferred — operational metrics not needed for PoC)
 
 ### Fase 8 — CI/CD com Tekton + Garak (semana 5)
 
@@ -210,7 +211,7 @@ Adicionar Dev Spaces como CDE alternativo.
 **Tasks:**
 - Instalar Dev Spaces Operator
 - Criar Devfile com Claude Code + tooling
-- Integrar com vLLM/MCP Gateway/OTEL existentes
+- Integrar com vLLM / MCP Gateway / MLflow existentes
 
 ## 6. Requisitos de infra
 

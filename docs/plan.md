@@ -249,27 +249,64 @@ Este eh o checkpoint mais importante do PoC. Se Claude Code + Qwen 2.5 14B nao p
 
 ### 2.1 Observabilidade (Fase 7)
 
-- [ ] Deploy OTEL Collector no namespace `observability`
-- [ ] Configurar receiver OTLP (gRPC :4317, HTTP :4318)
-- [ ] Deploy MLflow Tracking Server com storage (PV ou S3)
-- [ ] Configurar OTEL exporter → MLflow
-- [ ] Configurar Claude Code: `OTEL_EXPORTER_OTLP_ENDPOINT`
-- [ ] Validar: traces aparecem no MLflow apos tool call
-- [ ] Criar dashboards basicos: tokens/hora, tool calls/agente, latencia
+- [x] Deploy OTEL Collector no namespace `observability` — otel-collector-contrib v0.120.0, OTLP receivers, health_check extension
+- [x] Configurar receiver OTLP (gRPC :4317, HTTP :4318)
+- [x] Deploy MLflow Tracking Server com storage (PV ou S3) — atualizado pra MLflow v3.10.1, sqlite + PVC 10Gi
+- [x] Configurar Claude Code: `OTEL_EXPORTER_OTLP_ENDPOINT` — ConfigMap atualizado, NetworkPolicy criada
+- [x] Criar dashboards basicos: Grafana OSS 11.5.2 com dashboard AgentOps (spans/min, latency p50/p95/p99, active services, collector health)
+- [x] Configurar spanmetrics connector → prometheus exporter (:8889) → Prometheus dedicado no namespace
+- [x] Expor MLflow UI via Route TLS edge — `https://mlflow-tracking-observability.apps.<cluster>`
+- [x] Expor Grafana via Route TLS edge — `https://grafana-observability.apps.<cluster>`
+- [x] ADR-019: Observability stack decisions (MLflow native + OTEL for metrics)
+- [x] Configurar `mlflow autolog claude` — Dockerfile com `pip install mlflow>=3.10`, entrypoint.sh chama `mlflow autolog claude`, ConfigMap com `MLFLOW_TRACKING_URI` + `MLFLOW_EXPERIMENT_NAME`
+- [x] Remover `otlphttp/mlflow` do OTEL Collector — redundante com integracao nativa. OTEL fica apenas para Grafana metrics via spanmetrics.
+- [x] Desabilitar OTEL Collector, Prometheus e Grafana — MLflow autolog eh a unica observabilidade necessaria pro PoC. Manifests mantidos em `observability/{otel,prometheus,grafana}/` para re-ativacao futura. Scripts e docs atualizados para MLflow-only.
+
+**Problemas encontrados e resolvidos:**
+- OTEL Collector crashloop: `health_check` extension nao estava configurada, readiness probe em `:13133` falhava. Corrigido adicionando `extensions.health_check`.
+- MLflow container nao tem `curl`: verify script adaptado pra usar `python urllib` nativo.
+- MLflow v3.10.1 OOMKilled com 1Gi: v3 spawna huey workers pra scoring jobs. Aumentado limite pra 2Gi.
+- MLflow v3 `--allowed-hosts`: security middleware rejeita requests com Host header desconhecido. Adicionado hostname do Route e service interno.
+- OTEL `spanmetrics` connector: `service.name` e `span.kind` sao dimensoes built-in, nao podem ser listadas como custom dimensions.
+- NetworkPolicy: trafego intra-namespace bloqueado. Adicionado `podSelector: {}` ingress rule pra Grafana acessar OTEL metrics.
+- MLflow v3 CORS: `Blocked cross-origin request` no browser. Adicionado `--cors-allowed-origins` com hostname do Route.
+- MLflow `--allowed-hosts`: deve incluir `localhost`, `localhost:5000`, service name com e sem porta, e hostname do Route. Security middleware faz exact match no Host header.
+- `mlflow autolog claude` (MLflow >= 3.4): integracao nativa Claude Code → MLflow com tool calls, tokens, conversas. Substitui `otlphttp/mlflow` do OTEL Collector (que produzia spans genericos). Ref: https://mlflow.org/docs/latest/genai/tracing/integrations/listing/claude_code/
+- OTEL `otlphttp/mlflow` removido: redundante com integracao nativa. OTEL Collector permanece apenas para spanmetrics → Prometheus → Grafana (metrics operacionais).
+- `OTEL_EXPORTER_OTLP_ENDPOINT` conflita com MLflow tracing: env var faz o OTEL SDK interno do MLflow enviar traces pro OTEL Collector ao inves do MLflow server. Fix: remover do ConfigMap. Claude Code telemetry usa config proprio.
+- `opentelemetry-exporter-otlp-proto-http` obrigatorio no agent image: sem ele, `mlflow.start_span_no_context()` retorna `NoOpSpan`. Adicionado ao Dockerfile.
+- `.claude/settings.json` precisa de `chmod g+w`: OpenShift roda com UID aleatorio mas GID=0. Sem group-write, `mlflow autolog claude` nao consegue escrever hooks.
+- NetworkPolicy: agent-sandboxes egress e observability ingress precisam permitir porta 5000 (MLflow) alem de 4317/4318 (OTLP).
+- Simplificacao: OTEL Collector + Prometheus + Grafana adicionavam complexidade (crashloops, NetworkPolicy, spanmetrics config) sem valor suficiente pro PoC. `mlflow autolog claude` fornece traces ricos nativamente. Componentes desabilitados, manifests mantidos.
 
 **Artefatos:**
 
 ```
 observability/
-├── otel/
-│   ├── collector.yaml               # OTEL Collector deployment + config
-│   └── service.yaml                 # Service ClusterIP
-├── mlflow/
-│   ├── deployment.yaml              # MLflow Tracking Server
-│   ├── pvc.yaml                     # Storage
+├── otel/                            # (disabled) OTEL Collector — kept for future re-enablement
+│   ├── collector.yaml
 │   └── service.yaml
-└── dashboards/
-    └── agent-metrics.json           # Dashboard config (se aplicavel)
+├── prometheus/                      # (disabled) Prometheus — kept for future re-enablement
+│   ├── configmap.yaml
+│   ├── deployment.yaml
+│   └── service.yaml
+├── mlflow/                          # (active) MLflow Tracking Server v3.10.1
+│   ├── deployment.yaml
+│   ├── pvc.yaml
+│   ├── service.yaml
+│   └── route.yaml
+├── grafana/                         # (disabled) Grafana OSS — kept for future re-enablement
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── route.yaml
+│   ├── configmap-datasources.yaml
+│   └── configmap-dashboards.yaml
+├── dashboards/                      # (disabled) Grafana dashboard JSON
+│   └── agent-metrics.json
+└── scripts/
+    ├── config.sh                    # Env vars (namespace, paths, timeouts)
+    ├── 01-deploy-observability.sh   # Deploy MLflow only
+    └── 99-verify.sh                 # Verify MLflow
 ```
 
 ### 2.2 TrustyAI Guardrails (Fase 2)
@@ -351,7 +388,7 @@ coder/
 | # | Criterio | Validacao |
 |---|---|---|
 | G2.1 | Traces de tool calls aparecem no MLflow (AC-6) | UI do MLflow |
-| G2.2 | OTEL Collector recebendo spans | `oc logs` do collector |
+| G2.2 | MLflow recebendo traces via `mlflow autolog claude` | UI do MLflow (experiment `claude-code-agents`) |
 | G2.3 | Dados capturados: prompts, tokens, latencia, tools | Inspecionar traces |
 | G2.4 | Request com PII bloqueado pelo TrustyAI (AC-5) | Teste com CPF/email no prompt |
 | G2.5 | Request limpo chega no vLLM e retorna resposta | `curl` via Guardrails endpoint |
@@ -556,7 +593,7 @@ docs/
 | # | Criterio | Validacao |
 |---|---|---|
 | G5.1 | Pipeline Tekton roda Garak e bloqueia modelo vulneravel (AC-7) | PipelineRun com falha proposital |
-| G5.2 | Fluxo E2E funciona: Coder → Kata → Guardrails → vLLM → MCP → OTEL | Teste manual completo |
+| G5.2 | Fluxo E2E funciona: Coder → Kata → Guardrails → vLLM → MCP → MLflow | Teste manual completo |
 | G5.3 | Todos os 8 criterios de aceitacao passam | Checklist |
 | G5.4 | Metricas documentadas vs targets do PRD | `docs/results/metrics.md` |
 
@@ -568,7 +605,7 @@ docs/
 
 - [ ] Instalar Dev Spaces Operator
 - [ ] Criar Devfile com Claude Code + tooling
-- [ ] Integrar com vLLM / MCP Gateway / OTEL existentes
+- [ ] Integrar com vLLM / MCP Gateway / MLflow existentes
 - [ ] Comparar DX: Coder vs Dev Spaces
 
 ---
@@ -591,7 +628,7 @@ docs/
   - Compatibilidade com OpenShift (SCC, NetworkPolicy, rootless)
   - Integracao com Kata (runtimeClassName por agent)
   - Integracao com SPIFFE/Kagenti (identidade por agente)
-  - Integracao com OTEL/MLflow (traces multi-agente)
+  - Integracao com MLflow (traces multi-agente)
   - Compatibilidade com TrustyAI (guardrails por request, nao por agente)
 - [ ] Comparar modelos de orquestracao:
   - Gastown: Mayor/convoy (AI coordinator, git-backed state, merge queue)
@@ -607,7 +644,7 @@ docs/
   - vLLM (inference endpoint)
   - Kata (cada agente em microVM isolada)
   - MCP Gateway (tools governadas por identidade)
-  - OTEL Collector → MLflow (traces por agente)
+  - MLflow (traces por agente via `mlflow autolog claude`)
 - [ ] Testar workflows multi-agente:
   - Execucao paralela de tasks (2-5 agentes simultaneos)
   - Distribuicao de trabalho (round-robin, skill-based, priority)
@@ -707,9 +744,12 @@ claude-code-openshift/
 │   ├── auth/                        # AuthPolicy + OPA
 │   └── mcp-servers/                 # GitHub, filesystem
 ├── observability/
-│   ├── otel/                        # OTEL Collector
-│   ├── mlflow/                      # MLflow Tracking Server
-│   └── dashboards/                  # Dashboard configs
+│   ├── otel/                        # OTEL Collector (disabled — kept for future use)
+│   ├── mlflow/                      # MLflow Tracking Server v3.10.1 (active)
+│   ├── prometheus/                  # Prometheus (disabled — kept for future use)
+│   ├── grafana/                     # Grafana (disabled — kept for future use)
+│   ├── dashboards/                  # Grafana dashboard JSON (disabled)
+│   └── scripts/                     # Deploy + verify scripts (MLflow-only)
 ├── orchestration/
 │   ├── manifests/                   # Orchestrator deployment + config
 │   ├── scripts/                     # Deploy, verify

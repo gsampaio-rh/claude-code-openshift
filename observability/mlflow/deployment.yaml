@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow-tracking
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: mlflow-tracking
+    app.kubernetes.io/component: telemetry
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mlflow-tracking
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mlflow-tracking
+        app.kubernetes.io/component: telemetry
+        app.kubernetes.io/part-of: agentops-platform
+    spec:
+      containers:
+        - name: mlflow
+          image: ghcr.io/mlflow/mlflow:v3.10.1
+          command: ["mlflow"]
+          # CLUSTER-SPECIFIC: update --allowed-hosts and --cors-allowed-origins
+          # with your cluster's Route hostname (oc get route mlflow-tracking -n observability).
+          # MLflow v3 does exact match on Host header — list every variant.
+          args:
+            - server
+            - --host=0.0.0.0
+            - --port=5000
+            - --backend-store-uri=sqlite:///mnt/mlflow/mlflow.db
+            - --default-artifact-root=/mnt/mlflow/artifacts
+            - --allowed-hosts=localhost,localhost:5000,mlflow-tracking,mlflow-tracking:5000,mlflow-tracking.observability,mlflow-tracking.observability:5000,mlflow-tracking.observability.svc.cluster.local,mlflow-tracking.observability.svc.cluster.local:5000,mlflow-tracking-observability.apps.ocp.gdn7x.sandbox3313.opentlc.com
+            - --cors-allowed-origins=https://mlflow-tracking-observability.apps.ocp.gdn7x.sandbox3313.opentlc.com
+          ports:
+            - containerPort: 5000
+              protocol: TCP
+              name: http
+          env:
+            - name: HOME
+              value: /mnt/mlflow
+          resources:
+            requests:
+              cpu: "250m"
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: mlflow-store
+              mountPath: /mnt/mlflow
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            periodSeconds: 30
+            timeoutSeconds: 5
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 24
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: mlflow-store
+          persistentVolumeClaim:
+            claimName: mlflow-tracking-store
+        - name: tmp
+          emptyDir: {}

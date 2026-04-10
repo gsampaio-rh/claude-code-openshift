@@ -33,6 +33,9 @@ data:
   # Token limits tuned for Qwen 14B context window
   CLAUDE_CODE_MAX_OUTPUT_TOKENS: "8192"
   MAX_THINKING_TOKENS: "0"
-  # Phase 7: enable native OTEL (Claude Code has built-in support)
-  # CLAUDE_CODE_ENABLE_TELEMETRY: "1"
-  # OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc:4317"
+  # MLflow: native Claude Code tracing (tool calls, tokens, conversations)
+  # Ref: https://mlflow.org/docs/latest/genai/tracing/integrations/listing/claude_code/
+  # IMPORTANT: do NOT set OTEL_EXPORTER_OTLP_ENDPOINT here — it hijacks
+  # MLflow's internal OTEL SDK, preventing traces from reaching MLflow.
+  MLFLOW_TRACKING_URI: "http://mlflow-tracking.observability.svc.cluster.local:5000"
+  MLFLOW_EXPERIMENT_NAME: "claude-code-agents"

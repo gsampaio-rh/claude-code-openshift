@@ -1,0 +1,18 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: grafana
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: telemetry
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  to:
+    kind: Service
+    name: grafana
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

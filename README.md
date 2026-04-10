@@ -11,7 +11,7 @@ A PoC that validates the full Red Hat AI AgentOps stack:
 - **Safety guardrails** — TrustyAI intercepting inputs/outputs for PII detection and content filtering
 - **Identity** — SPIFFE/Kagenti for cryptographic agent identity (planned)
 - **Tool governance** — MCP Gateway with policy-based access control (planned)
-- **Observability** — OpenTelemetry + MLflow for full agent tracing (planned)
+- **Observability** — MLflow Tracking Server with native `mlflow autolog claude` for agent tracing
 - **CI/CD safety** — Tekton + Garak adversarial scanning before model deployment (planned)
 - **Developer CDE** — Coder workspaces with Claude Code pre-configured (planned)
 
@@ -22,7 +22,7 @@ Developer → Coder Workspace (Kata MicroVM)
                ├── Claude Code CLI
                ├── → TrustyAI Guardrails → vLLM (Qwen 14B, local GPU)
                ├── → MCP Gateway (tools filtered by identity)
-               └── → OTEL Collector → MLflow (traces)
+               └── → MLflow (traces via mlflow autolog claude)
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full architecture diagram.
@@ -32,9 +32,9 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full architecture diagr
 | Sprint | Scope | Status |
 |--------|-------|--------|
 | 1 | Infra + vLLM + Claude Code standalone | **Complete** |
-| 2 | Safety (TrustyAI) + Coder CDE | In progress |
+| 2 | Observability + Safety (TrustyAI) + Coder CDE | In progress |
 | 3 | Kata integration + Kagenti identity | Planned |
-| 4 | MCP Gateway + Observability | Planned |
+| 4 | MCP Gateway | Planned |
 | 5 | CI/CD + End-to-end integration | Planned |
 
 Sprint 1 gates passed: cluster validated (OCP 4.20), vLLM serving on L40S GPU, Claude Code running in Kata microVM on bare metal, model go/no-go approved.
@@ -48,13 +48,20 @@ See [docs/PLAN.md](docs/PLAN.md) for the detailed sprint plan.
 │   ├── PRD.md              # Product requirements
 │   ├── ARCHITECTURE.md     # System architecture
 │   ├── PLAN.md             # Sprint plan with task status
-│   └── adrs/               # Architecture Decision Records
+│   └── adrs/               # Architecture Decision Records (019 decisions)
 ├── infra/
 │   ├── cluster/            # Operators, namespaces, RBAC, quotas, Kata, MachineSets
 │   ├── vllm/               # vLLM deployment manifests and scripts
 │   ├── claude-code/        # Agent image (UBI9 + Node.js 22 + Claude Code CLI)
 │   ├── guardrails/         # TrustyAI Guardrails Orchestrator
 │   └── scripts/            # deploy-all.sh, e2e-test.sh
+├── observability/
+│   ├── otel/               # OTEL Collector (disabled — kept for future use)
+│   ├── mlflow/             # MLflow Tracking Server (deployment, service, PVC, route)
+│   ├── prometheus/         # Prometheus (disabled — kept for future use)
+│   ├── grafana/            # Grafana (disabled — kept for future use)
+│   ├── dashboards/         # Grafana dashboard JSON (disabled — kept for future use)
+│   └── scripts/            # 01-deploy-observability.sh, 99-verify.sh, config.sh
 └── .env.example            # Environment template (copy to .env)
 ```
 
@@ -80,6 +87,10 @@ cp .env.example .env
 ./infra/cluster/scripts/00-preflight-check.sh
 ./infra/vllm/scripts/01-deploy-model.sh
 ./infra/claude-code/scripts/01-deploy-standalone.sh
+
+# Deploy observability (MLflow)
+./observability/scripts/01-deploy-observability.sh
+./observability/scripts/99-verify.sh
 ```
 
 ### Verify
@@ -101,7 +112,7 @@ oc exec deploy/claude-code-standalone -n agent-sandboxes -- claude -p "What is 2
 - [Architecture](docs/ARCHITECTURE.md) — System layers, namespace layout, component contracts
 - [Sprint Plan](docs/PLAN.md) — Task checklist with status per sprint
 - [Infrastructure Requirements](docs/infrastructure-requirements.md) — Cluster/GPU/bare-metal sizing
-- [ADRs](docs/adrs/) — Architecture Decision Records (018 decisions documented)
+- [ADRs](docs/adrs/) — Architecture Decision Records (019 decisions documented)
 
 ## Tech Stack
 
@@ -115,5 +126,5 @@ oc exec deploy/claude-code-standalone -n agent-sandboxes -- claude -p "What is 2
 | CDE | Coder v2 (planned) |
 | Identity | Kagenti + SPIFFE/SPIRE (planned) |
 | Tool governance | MCP Gateway + Kuadrant (planned) |
-| Observability | OpenTelemetry + MLflow (planned) |
+| Observability | MLflow v3 (native `mlflow autolog claude`) |
 | CI/CD | Tekton + Garak (planned) |
