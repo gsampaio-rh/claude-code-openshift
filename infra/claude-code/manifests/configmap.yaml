@@ -39,3 +39,10 @@ data:
   # MLflow's internal OTEL SDK, preventing traces from reaching MLflow.
   MLFLOW_TRACKING_URI: "http://mlflow-tracking.observability.svc.cluster.local:5000"
   MLFLOW_EXPERIMENT_NAME: "claude-code-agents"
+  # AgentOps per-trace metadata — DISABLED for PoC (single agent).
+  # Re-enable with set-trace-tags.py when multi-agent requires per-trace
+  # pod/node identification. See ADR-020.
+  # AGENTOPS_RUNTIME_CLASS: "kata"
+  # AGENTOPS_CLUSTER: "ocp-sandbox"
+  # AGENTOPS_MODEL: "qwen25-14b"
+  # AGENTOPS_GPU: "L40S"

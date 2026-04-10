@@ -106,9 +106,39 @@ else
   warn "Cannot check experiments — no running MLflow pod"
 fi
 
-# ── 5. External Route access ────────────────────────────────────
+# ── 5. Experiment tags ─────────────────────────────────────────
 
-section "5. External Route Access"
+section "5. Experiment Tags"
+
+if [[ -n "$MLFLOW_POD" ]] && [[ -n "$EXP_CHECK" ]]; then
+  TAG_COUNT=$(oc exec "$MLFLOW_POD" -n "$NAMESPACE" -- \
+    python -c "
+import urllib.request, json
+req = urllib.request.Request('http://localhost:5000/api/2.0/mlflow/experiments/get-by-name?experiment_name=claude-code-agents')
+resp = urllib.request.urlopen(req)
+data = json.loads(resp.read())
+tags = {t['key']: t['value'] for t in data['experiment'].get('tags', [])}
+expected = ['platform', 'model', 'gpu', 'runtime', 'integration']
+found = [k for k in expected if k in tags]
+print(len(found))
+" 2>/dev/null || echo "0")
+  if [[ "$TAG_COUNT" -ge 4 ]]; then
+    pass "Experiment has $TAG_COUNT/5 expected tags"
+  elif [[ "$TAG_COUNT" -gt 0 ]]; then
+    warn "Experiment has $TAG_COUNT/5 expected tags (run 01-deploy-observability.sh to set all)"
+  else
+    warn "No experiment tags set — run 01-deploy-observability.sh"
+  fi
+else
+  warn "Cannot check experiment tags — experiment or pod not available"
+fi
+
+# Per-trace tag enrichment (set-trace-tags.py) is DISABLED for PoC.
+# See ADR-020. Re-enable this section when multi-agent is active.
+
+# ── 6. External Route access ────────────────────────────────────
+
+section "6. External Route Access"
 
 if [[ -n "$MLFLOW_HOST" ]]; then
   MLFLOW_EXT=$(curl -sk -o /dev/null -w "%{http_code}" "https://$MLFLOW_HOST/health" 2>/dev/null || echo "000")

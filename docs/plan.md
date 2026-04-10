@@ -158,9 +158,10 @@ infra/claude-code/
 │   ├── configmap.yaml               # ConfigMap claude-code-config
 │   └── standalone-pod.yaml          # Deployment (runtimeClassName: kata, nodeSelector: m5.metal)
 ├── scripts/                         # build, deploy, verify, cleanup
-├── entrypoint.sh                    # Startup banner + tail logs to stdout (ADR-015)
+├── entrypoint.sh                    # Startup banner + MLflow autolog (ADR-015)
+├── set-trace-tags.py                # Stop hook for per-trace metadata (disabled — ADR-020)
 ├── claude-logged                    # Wrapper: claude -p --verbose --output-format stream-json
-└── Dockerfile                       # UBI9 nodejs-22 + Claude Code CLI + entrypoint
+└── Dockerfile                       # UBI9 nodejs-22 + Claude Code CLI + MLflow + entrypoint
 ```
 
 **DECISAO: Go/No-Go do modelo**
@@ -261,6 +262,7 @@ Este eh o checkpoint mais importante do PoC. Se Claude Code + Qwen 2.5 14B nao p
 - [x] Configurar `mlflow autolog claude` — Dockerfile com `pip install mlflow>=3.10`, entrypoint.sh chama `mlflow autolog claude`, ConfigMap com `MLFLOW_TRACKING_URI` + `MLFLOW_EXPERIMENT_NAME`
 - [x] Remover `otlphttp/mlflow` do OTEL Collector — redundante com integracao nativa. OTEL fica apenas para Grafana metrics via spanmetrics.
 - [x] Desabilitar OTEL Collector, Prometheus e Grafana — MLflow autolog eh a unica observabilidade necessaria pro PoC. Manifests mantidos em `observability/{otel,prometheus,grafana}/` para re-ativacao futura. Scripts e docs atualizados para MLflow-only.
+- [x] Enriquecer metadata dos traces — implementado e validado E2E, depois **desabilitado** (complexidade desproporcional para single-agent). Experiment-level tags permanecem ativos. Per-trace hook (`set-trace-tags.py`) mantido no repo para re-ativacao em multi-agent. Ver ADR-020.
 
 **Problemas encontrados e resolvidos:**
 - OTEL Collector crashloop: `health_check` extension nao estava configurada, readiness probe em `:13133` falhava. Corrigido adicionando `extensions.health_check`.
@@ -723,7 +725,7 @@ claude-code-openshift/
 │   ├── references/
 │   └── results/                     # Resultados do PoC (Sprint 5)
 ├── infra/
-│   ├── claude-code/                 # Agent image, manifests, scripts
+│   ├── claude-code/                 # Agent image, entrypoint, manifests, scripts
 │   ├── cluster/                     # Operators, NS, NetworkPolicy, Quotas, RBAC, Kata, MachineSets
 │   ├── vllm/                        # Upstream vLLM model serving (Deployment+Service)
 │   ├── scripts/                     # deploy-all.sh, e2e-test.sh
@@ -774,7 +776,7 @@ flowchart LR
     S5 --> PostPoC[Pos-PoC<br>Dev Spaces +<br>Agent Orchestration]
 
     S1 -->|"vLLM + agente validado"| S2
-    S2 -->|"OTEL + Guardrails + Coder"| S3
+    S2 -->|"MLflow + Guardrails + Coder"| S3
     S3 -->|"SPIFFE tokens"| S4
     S4 -->|"Stack completa"| S5
     S5 -->|"Stack validada E2E"| PostPoC
@@ -786,7 +788,7 @@ flowchart LR
 - Sprint 3 depende do Coder funcional (Sprint 2) pra testar Kata nos workspaces
 - Sprint 4 depende dos tokens SPIFFE (Sprint 3) pra autenticar no MCP Gateway
 - Sprint 5 eh integracao — depende de tudo
-- Pos-PoC (Orchestration) depende da stack completa validada (Sprint 5) — multi-agente precisa de identity, guardrails, OTEL e MCP Gateway funcionais
+- Pos-PoC (Orchestration) depende da stack completa validada (Sprint 5) — multi-agente precisa de identity, guardrails, MLflow e MCP Gateway funcionais
 
 ---
 

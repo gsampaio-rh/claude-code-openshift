@@ -39,6 +39,21 @@ spec:
           env:
             - name: ANTHROPIC_API_KEY
               value: "not-needed"
+            # Kubernetes Downward API — DISABLED for PoC (single agent).
+            # Re-enable with set-trace-tags.py for per-trace pod/node
+            # identification in multi-agent scenarios. See ADR-020.
+            # - name: POD_NAME
+            #   valueFrom:
+            #     fieldRef:
+            #       fieldPath: metadata.name
+            # - name: POD_NAMESPACE
+            #   valueFrom:
+            #     fieldRef:
+            #       fieldPath: metadata.namespace
+            # - name: NODE_NAME
+            #   valueFrom:
+            #     fieldRef:
+            #       fieldPath: spec.nodeName
           resources:
             requests:
               cpu: "100m"

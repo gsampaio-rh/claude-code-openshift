@@ -79,6 +79,43 @@ except urllib.error.HTTPError as e:
         print(f'  Warning: {e.code} {body[:120]}')
 " 2>/dev/null || echo "  Warning: could not create experiment (MLflow may still be starting)."
   echo ""
+
+  echo "Setting experiment-level tags..."
+  oc exec "$MLFLOW_POD" -n "$NAMESPACE" -- \
+    python -c "
+import urllib.request, urllib.error, json
+
+def get_experiment_id():
+    req = urllib.request.Request(
+        'http://localhost:5000/api/2.0/mlflow/experiments/get-by-name?experiment_name=claude-code-agents')
+    resp = urllib.request.urlopen(req)
+    return json.loads(resp.read())['experiment']['experiment_id']
+
+def set_tag(exp_id, key, value):
+    req = urllib.request.Request(
+        'http://localhost:5000/api/2.0/mlflow/experiments/set-experiment-tag',
+        data=json.dumps({'experiment_id': exp_id, 'key': key, 'value': value}).encode(),
+        headers={'Content-Type': 'application/json'},
+        method='POST')
+    urllib.request.urlopen(req)
+
+try:
+    eid = get_experiment_id()
+    tags = {
+        'platform': 'openshift',
+        'model': 'qwen25-14b',
+        'gpu': 'NVIDIA L40S',
+        'runtime': 'kata',
+        'agent_namespace': 'agent-sandboxes',
+        'integration': 'mlflow-autolog-claude',
+    }
+    for k, v in tags.items():
+        set_tag(eid, k, v)
+    print(f'  Set {len(tags)} tags on experiment {eid}.')
+except Exception as e:
+    print(f'  Warning: could not set tags: {e}')
+" 2>/dev/null || echo "  Warning: could not set experiment tags."
+  echo ""
 fi
 
 MLFLOW_HOST=$(oc get route mlflow-tracking -n "$NAMESPACE" -o jsonpath='{.spec.host}' 2>/dev/null || echo "pending")

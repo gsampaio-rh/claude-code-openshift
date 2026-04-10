@@ -48,11 +48,11 @@ See [docs/PLAN.md](docs/PLAN.md) for the detailed sprint plan.
 │   ├── PRD.md              # Product requirements
 │   ├── ARCHITECTURE.md     # System architecture
 │   ├── PLAN.md             # Sprint plan with task status
-│   └── adrs/               # Architecture Decision Records (019 decisions)
+│   └── adrs/               # Architecture Decision Records (020 decisions)
 ├── infra/
 │   ├── cluster/            # Operators, namespaces, RBAC, quotas, Kata, MachineSets
 │   ├── vllm/               # vLLM deployment manifests and scripts
-│   ├── claude-code/        # Agent image (UBI9 + Node.js 22 + Claude Code CLI)
+│   ├── claude-code/        # Agent image, entrypoint, manifests, scripts
 │   ├── guardrails/         # TrustyAI Guardrails Orchestrator
 │   └── scripts/            # deploy-all.sh, e2e-test.sh
 ├── observability/
@@ -112,7 +112,7 @@ oc exec deploy/claude-code-standalone -n agent-sandboxes -- claude -p "What is 2
 - [Architecture](docs/ARCHITECTURE.md) — System layers, namespace layout, component contracts
 - [Sprint Plan](docs/PLAN.md) — Task checklist with status per sprint
 - [Infrastructure Requirements](docs/infrastructure-requirements.md) — Cluster/GPU/bare-metal sizing
-- [ADRs](docs/adrs/) — Architecture Decision Records (019 decisions documented)
+- [ADRs](docs/adrs/) — Architecture Decision Records (020 decisions documented)
 
 ## Tech Stack
 

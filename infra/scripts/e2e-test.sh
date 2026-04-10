@@ -200,9 +200,72 @@ else
 fi
 echo ""
 
-# ── 8. Kata Containers ────────────────────────────────────────
+# ── 8. MLflow Trace Validation ─────────────────────────────────
 
-echo "8. Kata Containers"
+echo "8. MLflow Trace Validation"
+
+MLFLOW_NS="observability"
+MLFLOW_POD=$(oc get pods -n "$MLFLOW_NS" \
+  -l "app.kubernetes.io/name=mlflow-tracking" \
+  --field-selector=status.phase=Running \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+
+if [[ -z "$MLFLOW_POD" ]]; then
+  skip "MLflow pod not running — skipping trace validation"
+else
+  echo "  8a. Waiting 15s for trace to flush (from section 7 prompts)..."
+  sleep 15
+
+  TRACE_CHECK=$(oc exec "$MLFLOW_POD" -n "$MLFLOW_NS" -- \
+    python -c "
+import urllib.request, json
+
+exp_req = urllib.request.Request(
+    'http://localhost:5000/api/2.0/mlflow/experiments/get-by-name?experiment_name=claude-code-agents')
+exp_resp = urllib.request.urlopen(exp_req, timeout=5)
+exp_id = json.loads(exp_resp.read())['experiment']['experiment_id']
+
+req = urllib.request.Request(
+    f'http://localhost:5000/api/2.0/mlflow/traces?experiment_ids={exp_id}&max_results=1')
+resp = urllib.request.urlopen(req, timeout=5)
+trace = json.loads(resp.read())['traces'][0]
+md = {m['key']: m['value'] for m in trace.get('request_metadata', [])}
+tokens = md.get('mlflow.trace.tokenUsage', '')
+has_input = 'mlflow.traceInputs' in md
+has_output = 'mlflow.traceOutputs' in md
+has_tokens = bool(tokens)
+print(f'has_trace=yes')
+print(f'has_input={\"yes\" if has_input else \"no\"}')
+print(f'has_output={\"yes\" if has_output else \"no\"}')
+print(f'has_tokens={\"yes\" if has_tokens else \"no\"}')
+" 2>/dev/null || echo "has_trace=no")
+
+  if echo "$TRACE_CHECK" | grep -q "has_trace=yes"; then
+    pass "MLflow trace exists for recent prompt"
+  else
+    fail "No MLflow trace found"
+  fi
+
+  if echo "$TRACE_CHECK" | grep -q "has_input=yes"; then
+    pass "Trace has input (prompt captured)"
+  else
+    warn "Trace missing input"
+  fi
+
+  if echo "$TRACE_CHECK" | grep -q "has_tokens=yes"; then
+    pass "Trace has token usage"
+  else
+    warn "Trace missing token usage"
+  fi
+
+  # Per-trace agentops.* tags are DISABLED for PoC (ADR-020).
+  # Re-enable assertion when set-trace-tags.py hook is active.
+fi
+echo ""
+
+# ── 9. Kata Containers ────────────────────────────────────────
+
+echo "9. Kata Containers"
 
 KATA_RC=$(oc get runtimeclass kata --no-headers 2>/dev/null || echo "")
 if [[ -n "$KATA_RC" ]]; then
@@ -249,9 +312,9 @@ fi
 
 echo ""
 
-# ── 9. Security Posture ──────────────────────────────────────
+# ── 10. Security Posture ─────────────────────────────────────
 
-echo "9. Security Posture"
+echo "10. Security Posture"
 
 for NS_CHECK in "$NAMESPACE_INFERENCE" "$NAMESPACE_AGENT"; do
   NP_COUNT=$(oc get networkpolicy -n "$NS_CHECK" --no-headers 2>/dev/null | wc -l | tr -d ' ')

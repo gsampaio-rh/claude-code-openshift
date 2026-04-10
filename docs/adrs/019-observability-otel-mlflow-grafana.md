@@ -47,6 +47,9 @@ Claude Code Agent
   └─ mlflow autolog claude ──▸ MLflow Tracking Server (traces + experiments)
 ```
 
+> Trace metadata enrichment (Downward API, `set-trace-tags.py` Stop hook) is
+> documented in [ADR-020](020-trace-metadata-enrichment.md).
+
 ## Context
 
 Agent workloads (Claude Code) running on OpenShift need full-stack observability:

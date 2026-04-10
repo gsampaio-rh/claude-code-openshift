@@ -13,6 +13,11 @@ if [[ -n "${MLFLOW_TRACKING_URI:-}" ]] && command -v mlflow &>/dev/null; then
   [[ -n "${MLFLOW_EXPERIMENT_NAME:-}" ]] && MLFLOW_ARGS+=(-n "$MLFLOW_EXPERIMENT_NAME")
   if mlflow autolog claude "${MLFLOW_ARGS[@]}" 2>/dev/null; then
     MLFLOW_TRACING="enabled → $MLFLOW_TRACKING_URI"
+
+    # Per-trace metadata enrichment (set-trace-tags.py) is DISABLED.
+    # Experiment-level tags are sufficient for the PoC (single agent).
+    # Re-enable when multi-agent requires per-trace pod/node identification.
+    # See ADR-020 for rationale and implementation details.
   else
     MLFLOW_TRACING="failed (check mlflow autolog claude --status)"
   fi

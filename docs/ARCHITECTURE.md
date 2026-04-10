@@ -498,6 +498,11 @@ flowchart LR
 - Latencia por step
 - Conversation flow estruturado
 
+> **Per-trace metadata enrichment** (`set-trace-tags.py`) was implemented and
+> validated but is **disabled for the PoC** — experiment-level tags are sufficient
+> for a single agent. See [ADR-020](adrs/020-trace-metadata-enrichment.md) for
+> details and re-enablement instructions.
+
 **Env vars no agente:**
 ```
 MLFLOW_TRACKING_URI=http://mlflow-tracking.observability.svc.cluster.local:5000
