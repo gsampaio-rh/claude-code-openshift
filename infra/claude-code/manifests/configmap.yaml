@@ -46,7 +46,9 @@ data:
   OTEL_METRICS_EXPORTER: "otlp"
   OTEL_EXPORTER_OTLP_METRICS_PROTOCOL: "http/protobuf"
   OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318/v1/metrics"
-  OTEL_LOGS_EXPORTER: "none"
+  OTEL_LOGS_EXPORTER: "otlp"
+  OTEL_EXPORTER_OTLP_LOGS_PROTOCOL: "http/protobuf"
+  OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318/v1/logs"
   OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: "cumulative"
   # AgentOps per-trace metadata — DISABLED for PoC (single agent).
   # Re-enable with set-trace-tags.py when multi-agent requires per-trace

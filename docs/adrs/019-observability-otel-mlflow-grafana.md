@@ -45,7 +45,8 @@ dashboards displayed operational metrics. However, the stack has been
 ```
 Claude Code Agent
   ├─ mlflow autolog claude ──▸ MLflow Tracking Server (traces + experiments)
-  └─ OTLP metrics (OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) ──▸ OTEL Collector ──▸ Prometheus ──▸ Grafana
+  ├─ OTLP metrics (OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) ──▸ OTEL Collector ──▸ Prometheus ──▸ Grafana
+  └─ OTLP logs (OTEL_EXPORTER_OTLP_LOGS_ENDPOINT) ──▸ OTEL Collector ──▸ debug exporter (oc logs)
 
 vLLM /metrics ──▸ ServiceMonitor ──▸ Prometheus (user workload) ──▸ Thanos Querier ──▸ Grafana
 ```
@@ -120,7 +121,7 @@ Deploy a three-component stack in the `observability` namespace:
 | Component | Image | Role | Status |
 |---|---|---|---|
 | **MLflow Tracking Server** | `mlflow:v3.10.1` | Trace storage, experiment tracking UI, artifact store | **Active** |
-| **OTEL Collector** (contrib) | `otel-collector-contrib:0.120.0` | Receives OTLP metrics from Claude Code, exports via Prometheus | **Active** (metrics only) |
+| **OTEL Collector** (contrib) | `otel-collector-contrib:0.120.0` | Receives OTLP metrics + logs from Claude Code; metrics → Prometheus, logs → debug | **Active** (metrics + logs) |
 | **Grafana OSS** | `grafana:11.5.2` | Inference dashboards querying Thanos Querier (user workload metrics) | **Active** (inference only) |
 
 ### Data flow (original design)

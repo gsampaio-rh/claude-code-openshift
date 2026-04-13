@@ -102,6 +102,7 @@ Claude Code sessions are ephemeral — `claude -p "prompt" → exit`. The Promet
 
 ```
 Claude Code → OTLP HTTP (:4318) → OTEL Collector → Prometheus endpoint (:8889) → Prometheus (UWM) → Thanos Querier → Grafana
+                                                  └→ debug exporter (logs → oc logs)
 ```
 
 **Configuration (in `claude-code-config` ConfigMap):**
@@ -111,16 +112,19 @@ CLAUDE_CODE_ENABLE_TELEMETRY: "1"
 OTEL_METRICS_EXPORTER: "otlp"
 OTEL_EXPORTER_OTLP_METRICS_PROTOCOL: "http/protobuf"
 OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318/v1/metrics"
-OTEL_LOGS_EXPORTER: "none"
+OTEL_LOGS_EXPORTER: "otlp"
+OTEL_EXPORTER_OTLP_LOGS_PROTOCOL: "http/protobuf"
+OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318/v1/logs"
 OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: "cumulative"
 ```
 
-**Dashboard:** "AgentOps — Claude Code Agent Metrics" in Grafana
+**Dashboard:** "AgentOps — Claude Code Agent Metrics" in Grafana (5 sections, 42 panels)
 
-- Token Usage: input, output, cache read/creation, total, estimated cost
-- Token rate over time (stacked by type), tokens by model
-- Sessions started, unique sessions, active time, lines of code, commits, PRs
-- Cumulative cost over time, tool decisions (accept/reject)
+- **Token Usage** — input, output, cache read/creation, total, estimated cost, rate over time, tokens by model
+- **Derived Efficiency Metrics** — cache hit rate, avg cost/session, avg tokens/session, output/input ratio, LOC per 1K tokens, commits/session, cache hit rate over time, cumulative cost
+- **Sessions & Activity** — sessions started, unique sessions, active time, lines of code, commits, PRs, LOC (added vs removed), active time (user vs CLI), tool decisions (accept/reject)
+- **MLflow Trace Metrics** — total traces, total LLM calls, avg agent span duration, avg LLM call duration, span duration over time, LLM latency distribution (p50/p90/p99)
+- **Container Resources** — memory usage (working set vs requested), CPU requests, pod restarts, memory over time, network I/O (received/transmitted)
 
 **Manifests:**
 
@@ -208,13 +212,29 @@ All rules defined in `infra/cluster/namespaces/network-policies.yaml`.
 
 ---
 
+### 1.3 Events/Logs — OTel → OTEL Collector → debug
+
+Claude Code emits structured events (prompt events, tool results, API errors) via the OTel Logs SDK. These are pushed to the OTEL Collector and currently exported via the `debug` exporter (visible in `oc logs deploy/otel-collector -n observability`).
+
+**Configuration:**
+
+```yaml
+OTEL_LOGS_EXPORTER: "otlp"
+OTEL_EXPORTER_OTLP_LOGS_PROTOCOL: "http/protobuf"
+OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318/v1/logs"
+```
+
+**Limitation:** Logs are only visible in the collector's stdout. A proper queryable backend (Loki, Elasticsearch) is needed for production use. See Sprint D.3 in [FUTURE_EXPLORATIONS.md](FUTURE_EXPLORATIONS.md).
+
+---
+
 ## 4. What's not implemented yet
 
 | Feature | Why | When |
 |---|---|---|
 | GPU metrics (DCGM) | Requires DCGM exporter on GPU nodes | When GPU utilization debugging is needed |
 | Client/caller breakdown | vLLM doesn't tag by caller; agent OTel has `session_id` but no user identity | With SPIFFE/Kagenti identity layer |
-| OTel events/logs | `OTEL_LOGS_EXPORTER=none` — not sending prompt events, tool results, API errors | When log aggregation (Loki/Elasticsearch) is deployed |
+| Queryable logs backend | Events/logs flow to OTEL Collector but export to `debug` (stdout only) | When Loki or Elasticsearch is deployed |
 | OTel traces (beta) | `OTEL_TRACES_EXPORTER` not configured — distributed tracing from prompt → tools → LLM | When debugging cross-component latency |
 | `OTEL_RESOURCE_ATTRIBUTES` | Custom labels for team/cost-center segmentation | Multi-tenant setup |
 | Alerting | No `PrometheusRule` CRDs defined | When SLOs are established |

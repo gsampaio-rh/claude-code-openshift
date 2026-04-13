@@ -490,7 +490,9 @@ sequenceDiagram
 flowchart LR
     Agent["Claude Code"] -->|"mlflow autolog claude"| MLflow["MLflow (traces + experiments)"]
     Agent -->|"OTLP metrics"| OTEL["OTEL Collector"]
+    Agent -->|"OTLP logs"| OTEL
     OTEL -->|":8889/metrics"| Prom["Prometheus (user workload)"]
+    OTEL -->|"debug exporter"| Logs["oc logs (events)"]
     vLLM["vLLM /metrics"] -->|"ServiceMonitor"| Prom
     Prom -->|"Thanos Querier"| Grafana["Grafana (dashboards)"]
 ```
@@ -531,11 +533,23 @@ O vLLM expoe 97 metricas Prometheus nativas no endpoint `/metrics` (porta 8080).
 | Engine | Requests running/waiting, preemptions, engine sleep state |
 | Process | RSS/virtual memory, CPU cores used, iteration tokens |
 
+**Agent dashboard (42 painéis, 5 seções):**
+
+| Seção | Painéis |
+|---|---|
+| Token Usage | input, output, cache read/creation, total, cost, rate over time, by model |
+| Derived Efficiency | cache hit rate, cost/session, tokens/session, output/input ratio, LOC/1K tokens, commits/session |
+| Sessions & Activity | sessions started, unique, active time, LOC, commits, PRs, tool decisions |
+| MLflow Trace Metrics | total traces, LLM calls, avg span duration (AGENT/LLM), latency distribution (p50/p90/p99) |
+| Container Resources | memory (working set vs requested), CPU requests, pod restarts, network I/O |
+
 **NetworkPolicy requerida:**
 
 | Source | Destination | Porta | Motivo |
 |---|---|---|---|
+| `agent-sandboxes` | `observability` | 4318 | OTLP push (metrics + logs) |
 | `openshift-user-workload-monitoring` | `inference` | 8080 | Prometheus scrape |
+| `openshift-user-workload-monitoring` | `observability` | 8889 | Prometheus scrape OTEL Collector |
 | `observability` | `openshift-monitoring` | 9091 | Grafana → Thanos Querier |
 
 **Routes (external access):**

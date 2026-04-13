@@ -81,12 +81,13 @@ Temas que ficam **fora do núcleo imediato do PoC**, mas merecem tempo dedicado.
 - **Claude Code telemetry** habilitado via `CLAUDE_CODE_ENABLE_TELEMETRY=1` + `OTEL_METRICS_EXPORTER=otlp`
 - Usa `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` (metrics-specific) para não conflitar com MLflow tracing
 - **ServiceMonitor** para o OTEL Collector (`observability/otel/servicemonitor.yaml`)
-- **Dashboard "AgentOps — Claude Code Agent Metrics"** (`observability/dashboards/agent-metrics.json`):
-  - **Token Usage** — input, output, cache read/creation, total tokens, estimated cost (USD)
-  - **Token Usage Over Time** — rate por tipo (stacked), tokens por modelo
-  - **Sessions & Activity** — sessions started, active time, lines of code, commits, PRs, unique sessions
-  - **Lines of Code** (added vs removed), **Active Time** (user vs CLI)
-  - **Cost & Tools** — cumulative cost over time, tool decisions (accept/reject)
+- **Dashboard "AgentOps — Claude Code Agent Metrics"** (`observability/dashboards/agent-metrics.json`) — 5 seções, 42 painéis:
+  - **Token Usage** — input, output, cache read/creation, total tokens, estimated cost (USD), rate over time, tokens por modelo
+  - **Derived Efficiency Metrics** — cache hit rate, avg cost/session, avg tokens/session, output/input ratio, LOC per 1K tokens, commits/session, cache hit rate over time, cumulative cost
+  - **Sessions & Activity** — sessions started, unique sessions, active time, lines of code, commits, PRs, LOC (added vs removed), active time (user vs CLI), tool decisions (accept/reject)
+  - **MLflow Trace Metrics** — total traces, total LLM calls, avg agent/LLM span duration, span duration over time, LLM latency distribution (p50/p90/p99)
+  - **Container Resources** — memory working set vs requested, CPU requests, pod restarts, memory over time, network I/O
+- **OTel events/logs habilitado** — `OTEL_LOGS_EXPORTER=otlp` envia eventos do agente ao OTEL Collector (debug exporter → `oc logs`)
 - **NetworkPolicy** atualizada: agent → OTEL Collector (:4318), Prometheus → OTEL Collector (:8889)
 
 **Decisão de arquitetura: OTLP → OTEL Collector (opção 2)**
@@ -115,7 +116,7 @@ A opção 1 (Prometheus exporter direto, `OTEL_METRICS_EXPORTER=prometheus`) **n
 
 **Não implementado (futuro):**
 
-- Eventos/logs via `OTEL_LOGS_EXPORTER=otlp` (prompt events, tool results, API errors)
+- **Backend de logs queryable** — eventos/logs fluem ao OTEL Collector mas exportam apenas via `debug` (stdout). Precisa de Loki/Elasticsearch para queries.
 - Traces beta via `OTEL_TRACES_EXPORTER=otlp` (distributed tracing prompt → tools → LLM)
 - `OTEL_RESOURCE_ATTRIBUTES` para labels de equipe em multi-tenant
 - Breakdown por `user.account_uuid` / `user.email` (requer OAuth no agente)
@@ -145,17 +146,17 @@ A opção 1 (Prometheus exporter direto, `OTEL_METRICS_EXPORTER=prometheus`) **n
 - **Médio prazo:** Com SPIFFE/Kagenti (Sprint 3 do PLAN), cada agente terá identidade criptográfica. Um proxy (Envoy/HAProxy) na frente do vLLM pode injetar headers `X-Agent-ID` e o vLLM pode logar por caller.
 - **Longo prazo:** OAuth no agente (`user.account_uuid`, `user.email` nos atributos OTel) + MaaS (Sprint B) para governança completa.
 
-### D.3 — OTel events/logs do agente
+### D.3 — OTel events/logs do agente (parcialmente implementado)
 
-**O que falta:** `OTEL_LOGS_EXPORTER=none` — não estamos capturando os eventos detalhados que o Claude Code emite: prompt events, tool results (nome, sucesso, duração, erro), API requests (modelo, custo, tokens), API errors (status code, retries), tool decisions.
+**O que já funciona:** `OTEL_LOGS_EXPORTER=otlp` habilitado. Eventos do agente (prompt events, tool results, API requests) fluem para o OTEL Collector via OTLP. O collector exporta via `debug` exporter — logs visíveis em `oc logs deploy/otel-collector -n observability`.
+
+**O que falta:** Backend de logs queryable para correlacionar eventos com métricas no Grafana.
 
 **Como fazer:**
-- Setar `OTEL_LOGS_EXPORTER=otlp` no ConfigMap do agente
-- Configurar pipeline de logs no OTEL Collector: receiver OTLP → exporter para **Loki** ou **Elasticsearch**
-- Grafana Loki como datasource para correlacionar logs com métricas
-- Útil para: debugging de falhas de tool, análise de prompts que causam erros, auditoria de uso
-
-**Pré-requisito:** Deploy de Loki ou outro backend de logs no cluster. OpenShift Logging (Loki Operator) é opção nativa.
+- Deploy **Loki** (ou Elasticsearch) no cluster — OpenShift Logging (Loki Operator) é opção nativa
+- Adicionar exporter `loki` na pipeline de logs do OTEL Collector (substituir `debug`)
+- Configurar Loki como datasource no Grafana
+- Criar dashboards de logs correlacionados com métricas (debugging de falhas de tool, análise de prompts que causam erros, auditoria de uso)
 
 ### D.4 — OTel traces (beta) do agente
 

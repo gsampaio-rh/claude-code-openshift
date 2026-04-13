@@ -279,6 +279,10 @@ Este eh o checkpoint mais importante do PoC. Se Claude Code + Qwen 2.5 14B nao p
   - [x] Dashboard "AgentOps — Claude Code Agent Metrics" (tokens, cost, sessions, lines of code, tool decisions)
   - [x] Atualizar NetworkPolicy: `agent-sandboxes` → `observability:4318` (OTLP), Prometheus → `observability:8889` (scrape)
   - [x] Validar E2E: Claude session → OTLP push → OTEL Collector → Prometheus → Grafana
+  - [x] Adicionar métricas derivadas ao dashboard: cache hit rate, avg cost/session, tokens/session, output/input ratio, LOC/1K tokens, commits/session
+  - [x] Adicionar painéis MLflow trace metrics: total traces, LLM calls, avg span duration (AGENT/LLM), latency distribution (p50/p90/p99)
+  - [x] Adicionar painéis de container resources: memory (working set vs requested), CPU requests, pod restarts, network I/O
+  - [x] Habilitar OTel events/logs: `OTEL_LOGS_EXPORTER=otlp` + pipeline de logs no OTEL Collector (debug exporter)
 
 **Problemas encontrados e resolvidos:**
 - OTEL Collector crashloop: `health_check` extension nao estava configurada, readiness probe em `:13133` falhava. Corrigido adicionando `extensions.health_check`.
@@ -320,7 +324,8 @@ observability/
 │   ├── configmap-datasources.yaml   # Thanos Querier datasource with bearer token
 │   └── configmap-dashboards.yaml
 ├── dashboards/                      # (active) Grafana dashboard JSON
-│   └── inference-metrics.json       # vLLM inference dashboard (Model & Usage, Latency, Cache, etc.)
+│   ├── inference-metrics.json       # vLLM inference dashboard (Model & Usage, Latency, Cache, etc.)
+│   └── agent-metrics.json           # Claude Code agent dashboard (42 panels: tokens, derived, MLflow, container)
 └── scripts/
     ├── config.sh                    # Env vars (namespace, paths, timeouts)
     ├── 01-deploy-observability.sh   # Deploy MLflow only
