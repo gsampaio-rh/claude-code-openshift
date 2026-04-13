@@ -307,10 +307,6 @@ observability/
 │   ├── collector.yaml               # ConfigMap + Deployment (OTLP receiver → Prometheus exporter)
 │   ├── service.yaml
 │   └── servicemonitor.yaml          # Prometheus scrape on :8889
-├── prometheus/                      # (disabled) Prometheus — kept for future re-enablement
-│   ├── configmap.yaml
-│   ├── deployment.yaml
-│   └── service.yaml
 ├── mlflow/                          # (active) MLflow Tracking Server v3.10.1
 │   ├── deployment.yaml
 │   ├── pvc.yaml
@@ -768,7 +764,6 @@ claude-code-openshift/
 ├── observability/
 │   ├── otel/                        # OTEL Collector (active — Claude Code metrics via OTLP)
 │   ├── mlflow/                      # MLflow Tracking Server v3.10.1 (active)
-│   ├── prometheus/                  # Prometheus (disabled — using user workload monitoring)
 │   ├── grafana/                     # Grafana (active — inference metrics via Thanos Querier)
 │   ├── dashboards/                  # Grafana dashboard JSON (inference-metrics.json)
 │   └── scripts/                     # Deploy + verify scripts

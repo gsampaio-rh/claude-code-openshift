@@ -56,11 +56,10 @@ See [docs/PLAN.md](docs/PLAN.md) for the detailed sprint plan.
 │   ├── guardrails/         # TrustyAI Guardrails Orchestrator
 │   └── scripts/            # deploy-all.sh, e2e-test.sh
 ├── observability/
-│   ├── otel/               # OTEL Collector (disabled — kept for future use)
+│   ├── otel/               # OTEL Collector (Claude Code metrics via OTLP)
 │   ├── mlflow/             # MLflow Tracking Server (deployment, service, PVC, route)
-│   ├── prometheus/         # Prometheus (disabled — kept for future use)
-│   ├── grafana/            # Grafana (disabled — kept for future use)
-│   ├── dashboards/         # Grafana dashboard JSON (disabled — kept for future use)
+│   ├── grafana/            # Grafana (inference + agent dashboards via Thanos Querier)
+│   ├── dashboards/         # Grafana dashboard JSON (inference-metrics, agent-metrics)
 │   └── scripts/            # 01-deploy-observability.sh, 99-verify.sh, config.sh
 └── .env.example            # Environment template (copy to .env)
 ```
