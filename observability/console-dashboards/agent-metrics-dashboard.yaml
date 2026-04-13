@@ -1,0 +1,1550 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentops-agent-dashboard
+  namespace: openshift-config-managed
+  labels:
+    console.openshift.io/dashboard: "true"
+data:
+  agent-metrics.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "editable": true,
+      "graphTooltip": 1,
+      "links": [],
+      "rows": [
+        {
+          "title": "Token Usage",
+          "collapse": false,
+          "height": "100px",
+          "panels": [
+            {
+              "type": "singlestat",
+              "id": 1,
+              "title": "Input Tokens",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_token_usage_tokens_total{type=\"input\",job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": true,
+                "full": true,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 2,
+              "title": "Output Tokens",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_token_usage_tokens_total{type=\"output\",job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": true,
+                "full": true,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 3,
+              "title": "Cache Read",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_token_usage_tokens_total{type=\"cacheRead\",job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": true,
+                "full": true,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 4,
+              "title": "Cache Creation",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_token_usage_tokens_total{type=\"cacheCreation\",job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": true,
+                "full": true,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 5,
+              "title": "Total Tokens",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_token_usage_tokens_total{job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": true,
+                "full": true,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 6,
+              "title": "Estimated Cost",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_cost_usage_USD_total{job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "currencyUSD",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": true,
+                "full": true,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null",
+              "decimals": 4
+            }
+          ]
+        },
+        {
+          "title": "Token Trends",
+          "collapse": false,
+          "height": "250px",
+          "panels": [
+            {
+              "type": "graph",
+              "id": 7,
+              "title": "Token Usage Over Time",
+              "span": 6,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum by (type) (rate(claude_code_token_usage_tokens_total{job=\"otel-collector\"}[5m]))",
+                  "legendFormat": "{{type}}",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "short",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 3,
+              "stack": true,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 8,
+              "title": "Tokens by Model",
+              "span": 6,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum by (model) (rate(claude_code_token_usage_tokens_total{job=\"otel-collector\"}[5m]))",
+                  "legendFormat": "{{model}}",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "short",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Efficiency",
+          "collapse": false,
+          "height": "100px",
+          "panels": [
+            {
+              "type": "singlestat",
+              "id": 30,
+              "title": "Cache Hit Rate",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_token_usage_tokens_total{type=\"cacheRead\",job=\"otel-collector\"}) / (sum(claude_code_token_usage_tokens_total{type=\"input\",job=\"otel-collector\"}) + sum(claude_code_token_usage_tokens_total{type=\"cacheRead\",job=\"otel-collector\"}))",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "percentunit",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null",
+              "decimals": 1,
+              "description": "cacheRead / (input + cacheRead)"
+            },
+            {
+              "type": "singlestat",
+              "id": 31,
+              "title": "Avg Cost / Session",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_cost_usage_USD_total{job=\"otel-collector\"}) / count(count by (session_id) (claude_code_session_count_total{job=\"otel-collector\"}))",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "currencyUSD",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null",
+              "decimals": 4
+            },
+            {
+              "type": "singlestat",
+              "id": 32,
+              "title": "Tokens / Session",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_token_usage_tokens_total{job=\"otel-collector\"}) / count(count by (session_id) (claude_code_session_count_total{job=\"otel-collector\"}))",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null",
+              "decimals": 0
+            },
+            {
+              "type": "singlestat",
+              "id": 33,
+              "title": "Output / Input",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_token_usage_tokens_total{type=\"output\",job=\"otel-collector\"}) / sum(claude_code_token_usage_tokens_total{type=\"input\",job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null",
+              "decimals": 2
+            },
+            {
+              "type": "singlestat",
+              "id": 34,
+              "title": "LOC / 1K Tokens",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_lines_of_code_count_total{job=\"otel-collector\"}) / (sum(claude_code_token_usage_tokens_total{job=\"otel-collector\"}) / 1000)",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null",
+              "decimals": 1
+            },
+            {
+              "type": "singlestat",
+              "id": 35,
+              "title": "Commits / Session",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_commit_count_total{job=\"otel-collector\"}) / count(count by (session_id) (claude_code_session_count_total{job=\"otel-collector\"}))",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null",
+              "decimals": 1
+            }
+          ]
+        },
+        {
+          "title": "Cost & Cache Trends",
+          "collapse": false,
+          "height": "250px",
+          "panels": [
+            {
+              "type": "graph",
+              "id": 36,
+              "title": "Cache Hit Rate Over Time",
+              "span": 6,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(rate(claude_code_token_usage_tokens_total{type=\"cacheRead\",job=\"otel-collector\"}[5m])) / (sum(rate(claude_code_token_usage_tokens_total{type=\"input\",job=\"otel-collector\"}[5m])) + sum(rate(claude_code_token_usage_tokens_total{type=\"cacheRead\",job=\"otel-collector\"}[5m])))",
+                  "legendFormat": "cache hit rate",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "percentunit",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 3,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 21,
+              "title": "Cumulative Cost",
+              "span": 6,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_cost_usage_USD_total{job=\"otel-collector\"})",
+                  "legendFormat": "total cost (USD)",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "currencyUSD",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 3,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Sessions & Activity",
+          "collapse": false,
+          "height": "100px",
+          "panels": [
+            {
+              "type": "singlestat",
+              "id": 10,
+              "title": "Sessions",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_session_count_total{job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 19,
+              "title": "Unique Sessions",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "count(count by (session_id) (claude_code_session_count_total{job=\"otel-collector\"}))",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 11,
+              "title": "Active Time",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_active_time_total_s_total{job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "s",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 12,
+              "title": "Lines Changed",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_lines_of_code_count_total{job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 13,
+              "title": "Commits",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_commit_count_total{job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 14,
+              "title": "Pull Requests",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(claude_code_pull_request_count_total{job=\"otel-collector\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            }
+          ]
+        },
+        {
+          "title": "Code Activity",
+          "collapse": false,
+          "height": "250px",
+          "panels": [
+            {
+              "type": "graph",
+              "id": 15,
+              "title": "Lines of Code (Added vs Removed)",
+              "span": 6,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum by (type) (rate(claude_code_lines_of_code_count_total{job=\"otel-collector\"}[5m]))",
+                  "legendFormat": "{{type}}",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "short",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 3,
+              "stack": true,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 16,
+              "title": "Active Time (User vs CLI)",
+              "span": 6,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum by (type) (rate(claude_code_active_time_total_s_total{job=\"otel-collector\"}[5m]))",
+                  "legendFormat": "{{type}}",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "s",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Tool Decisions",
+          "collapse": false,
+          "height": "250px",
+          "panels": [
+            {
+              "type": "graph",
+              "id": 20,
+              "title": "Tool Decisions (Accept / Reject)",
+              "span": 12,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum by (tool_name, decision) (rate(claude_code_code_edit_tool_decision_total{job=\"otel-collector\"}[5m]))",
+                  "legendFormat": "{{tool_name}} - {{decision}}",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "short",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 3,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            }
+          ]
+        },
+        {
+          "title": "MLflow Traces",
+          "collapse": false,
+          "height": "100px",
+          "panels": [
+            {
+              "type": "singlestat",
+              "id": 40,
+              "title": "Total Traces",
+              "span": 3,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(mlflow_trace_span_duration_milliseconds_count{root=\"true\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 41,
+              "title": "LLM Calls",
+              "span": 3,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(mlflow_trace_span_duration_milliseconds_count{span_type=\"LLM\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 42,
+              "title": "Avg Agent Span",
+              "span": 3,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(mlflow_trace_span_duration_milliseconds_sum{span_type=\"AGENT\",root=\"true\"}) / sum(mlflow_trace_span_duration_milliseconds_count{span_type=\"AGENT\",root=\"true\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "ms",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null",
+              "decimals": 0
+            },
+            {
+              "type": "singlestat",
+              "id": 43,
+              "title": "Avg LLM Call",
+              "span": 3,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(mlflow_trace_span_duration_milliseconds_sum{span_type=\"LLM\"}) / sum(mlflow_trace_span_duration_milliseconds_count{span_type=\"LLM\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "ms",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null",
+              "decimals": 0
+            }
+          ]
+        },
+        {
+          "title": "Trace Latency",
+          "collapse": false,
+          "height": "250px",
+          "panels": [
+            {
+              "type": "graph",
+              "id": 44,
+              "title": "Avg Span Duration Over Time",
+              "span": 6,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum by (span_type) (rate(mlflow_trace_span_duration_milliseconds_sum[5m])) / sum by (span_type) (rate(mlflow_trace_span_duration_milliseconds_count[5m]))",
+                  "legendFormat": "{{span_type}}",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "ms",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 45,
+              "title": "LLM Latency (p50 / p90 / p99)",
+              "span": 6,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "histogram_quantile(0.50, sum by (le) (rate(mlflow_trace_span_duration_milliseconds_bucket{span_type=\"LLM\"}[5m])))",
+                  "legendFormat": "p50",
+                  "refId": "A"
+                },
+                {
+                  "expr": "histogram_quantile(0.90, sum by (le) (rate(mlflow_trace_span_duration_milliseconds_bucket{span_type=\"LLM\"}[5m])))",
+                  "legendFormat": "p90",
+                  "refId": "B"
+                },
+                {
+                  "expr": "histogram_quantile(0.99, sum by (le) (rate(mlflow_trace_span_duration_milliseconds_bucket{span_type=\"LLM\"}[5m])))",
+                  "legendFormat": "p99",
+                  "refId": "C"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "ms",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Container Resources",
+          "collapse": false,
+          "height": "100px",
+          "panels": [
+            {
+              "type": "singlestat",
+              "id": 50,
+              "title": "Memory (WSS)",
+              "span": 3,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(container_memory_working_set_bytes{namespace=\"agent-sandboxes\",container!=\"POD\",container!=\"\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "bytes",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 51,
+              "title": "Memory Requested",
+              "span": 3,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(kube_pod_container_resource_requests{namespace=\"agent-sandboxes\",resource=\"memory\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "bytes",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 52,
+              "title": "CPU Requested",
+              "span": 3,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(kube_pod_container_resource_requests{namespace=\"agent-sandboxes\",resource=\"cpu\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null",
+              "decimals": 3
+            },
+            {
+              "type": "singlestat",
+              "id": 53,
+              "title": "Pod Restarts",
+              "span": 3,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(kube_pod_container_status_restarts_total{namespace=\"agent-sandboxes\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            }
+          ]
+        },
+        {
+          "title": "Resource Trends",
+          "collapse": false,
+          "height": "250px",
+          "panels": [
+            {
+              "type": "graph",
+              "id": 54,
+              "title": "Memory Usage Over Time",
+              "span": 6,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(container_memory_working_set_bytes{namespace=\"agent-sandboxes\",container!=\"POD\",container!=\"\"})",
+                  "legendFormat": "working set",
+                  "refId": "A"
+                },
+                {
+                  "expr": "sum(kube_pod_container_resource_requests{namespace=\"agent-sandboxes\",resource=\"memory\"})",
+                  "legendFormat": "requested",
+                  "refId": "B"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "bytes",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 3,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 55,
+              "title": "Network I/O",
+              "span": 6,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(rate(container_network_receive_bytes_total{namespace=\"agent-sandboxes\"}[5m]))",
+                  "legendFormat": "received",
+                  "refId": "A"
+                },
+                {
+                  "expr": "sum(rate(container_network_transmit_bytes_total{namespace=\"agent-sandboxes\"}[5m]))",
+                  "legendFormat": "transmitted",
+                  "refId": "B"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "Bps",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 3,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 14,
+      "tags": [
+        "claude-code",
+        "agent",
+        "agentops"
+      ],
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "selected": true,
+              "text": "Prometheus",
+              "value": "Prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "multi": false,
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "queryValue": "",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          }
+        ]
+      },
+      "time": {
+        "from": "now-3h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "AgentOps - Agent Metrics",
+      "uid": "agentops-agent",
+      "version": 1
+    }

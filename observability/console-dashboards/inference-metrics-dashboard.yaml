@@ -1,0 +1,1288 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentops-inference-dashboard
+  namespace: openshift-config-managed
+  labels:
+    console.openshift.io/dashboard: "true"
+data:
+  inference-metrics.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "editable": true,
+      "graphTooltip": 1,
+      "links": [],
+      "rows": [
+        {
+          "title": "Model & Usage",
+          "collapse": false,
+          "height": "100px",
+          "panels": [
+            {
+              "type": "singlestat",
+              "id": 50,
+              "title": "Served Model",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "vllm:num_requests_running{job=\"qwen25-14b\"}",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 51,
+              "title": "Prompt Tokens",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "vllm:prompt_tokens_total{job=\"qwen25-14b\"}",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": true,
+                "full": true,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 52,
+              "title": "Gen Tokens",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "vllm:generation_tokens_total{job=\"qwen25-14b\"}",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": true,
+                "full": true,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 53,
+              "title": "Total Tokens",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "vllm:prompt_tokens_total{job=\"qwen25-14b\"} + vllm:generation_tokens_total{job=\"qwen25-14b\"}",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": true,
+                "full": true,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 54,
+              "title": "Tokens / Req",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "(vllm:prompt_tokens_total{job=\"qwen25-14b\"} + vllm:generation_tokens_total{job=\"qwen25-14b\"}) / scalar(sum(vllm:request_success_total{job=\"qwen25-14b\"}))",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 55,
+              "title": "Total Requests",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(vllm:request_success_total{job=\"qwen25-14b\"})",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": true,
+                "full": true,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            }
+          ]
+        },
+        {
+          "title": "Token Trends",
+          "collapse": false,
+          "height": "250px",
+          "panels": [
+            {
+              "type": "graph",
+              "id": 56,
+              "title": "Requests by Finish Reason",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "increase(vllm:request_success_total{job=\"qwen25-14b\"}[5m])",
+                  "legendFormat": "{{finished_reason}}",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "short",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 3,
+              "stack": true,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 57,
+              "title": "Prompt Tokens by Source",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "rate(vllm:prompt_tokens_by_source_total{job=\"qwen25-14b\"}[5m])",
+                  "legendFormat": "{{source}}",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "short",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 3,
+              "stack": true,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 58,
+              "title": "Token Throughput (tokens/s)",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "rate(vllm:prompt_tokens_total{job=\"qwen25-14b\"}[5m])",
+                  "legendFormat": "Prompt/s",
+                  "refId": "A"
+                },
+                {
+                  "expr": "rate(vllm:generation_tokens_total{job=\"qwen25-14b\"}[5m])",
+                  "legendFormat": "Generation/s",
+                  "refId": "B"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "short",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Request Overview",
+          "collapse": false,
+          "height": "100px",
+          "panels": [
+            {
+              "type": "singlestat",
+              "id": 1,
+              "title": "Running",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "vllm:num_requests_running{job=\"qwen25-14b\"}",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 2,
+              "title": "Waiting",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "vllm:num_requests_waiting{job=\"qwen25-14b\"}",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 4,
+              "title": "Request Rate",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "sum(rate(vllm:request_success_total{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "reqps",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 6,
+              "title": "Preemptions",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "vllm:num_preemptions_total{job=\"qwen25-14b\"}",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            },
+            {
+              "type": "singlestat",
+              "id": 3,
+              "title": "KV Cache %",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "vllm:kv_cache_usage_perc{job=\"qwen25-14b\"}",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "percentunit",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null",
+              "decimals": 1
+            },
+            {
+              "type": "singlestat",
+              "id": 32,
+              "title": "Engine Awake",
+              "span": 2,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "vllm:engine_sleep_state{job=\"qwen25-14b\",sleep_state=\"awake\"}",
+                  "legendFormat": "",
+                  "refId": "A"
+                }
+              ],
+              "format": "short",
+              "valueName": "current",
+              "colorBackground": false,
+              "colorValue": true,
+              "colors": [
+                "#299c46",
+                "#ef843c",
+                "#d44a3a"
+              ],
+              "sparkline": {
+                "show": false,
+                "full": false,
+                "lineColor": "rgb(31, 120, 193)",
+                "fillColor": "rgba(31, 120, 193, 0.18)"
+              },
+              "gauge": {
+                "show": false
+              },
+              "nullPointMode": "null"
+            }
+          ]
+        },
+        {
+          "title": "Latency (TTFT / ITL / E2E)",
+          "collapse": false,
+          "height": "250px",
+          "panels": [
+            {
+              "type": "graph",
+              "id": 10,
+              "title": "Time to First Token",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "histogram_quantile(0.50, rate(vllm:time_to_first_token_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p50",
+                  "refId": "A"
+                },
+                {
+                  "expr": "histogram_quantile(0.95, rate(vllm:time_to_first_token_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p95",
+                  "refId": "B"
+                },
+                {
+                  "expr": "histogram_quantile(0.99, rate(vllm:time_to_first_token_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p99",
+                  "refId": "C"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "s",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 11,
+              "title": "Inter-Token Latency",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "histogram_quantile(0.50, rate(vllm:inter_token_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p50",
+                  "refId": "A"
+                },
+                {
+                  "expr": "histogram_quantile(0.95, rate(vllm:inter_token_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p95",
+                  "refId": "B"
+                },
+                {
+                  "expr": "histogram_quantile(0.99, rate(vllm:inter_token_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p99",
+                  "refId": "C"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "s",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 12,
+              "title": "E2E Request Latency",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "histogram_quantile(0.50, rate(vllm:e2e_request_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p50",
+                  "refId": "A"
+                },
+                {
+                  "expr": "histogram_quantile(0.95, rate(vllm:e2e_request_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p95",
+                  "refId": "B"
+                },
+                {
+                  "expr": "histogram_quantile(0.99, rate(vllm:e2e_request_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p99",
+                  "refId": "C"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "s",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Latency (Queue / Prefill / Decode)",
+          "collapse": false,
+          "height": "250px",
+          "panels": [
+            {
+              "type": "graph",
+              "id": 13,
+              "title": "Queue Wait Time",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "histogram_quantile(0.50, rate(vllm:request_queue_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p50",
+                  "refId": "A"
+                },
+                {
+                  "expr": "histogram_quantile(0.95, rate(vllm:request_queue_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p95",
+                  "refId": "B"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "s",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 14,
+              "title": "Prefill Time",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "histogram_quantile(0.50, rate(vllm:request_prefill_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p50",
+                  "refId": "A"
+                },
+                {
+                  "expr": "histogram_quantile(0.95, rate(vllm:request_prefill_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p95",
+                  "refId": "B"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "s",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 15,
+              "title": "Decode Time",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "histogram_quantile(0.50, rate(vllm:request_decode_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p50",
+                  "refId": "A"
+                },
+                {
+                  "expr": "histogram_quantile(0.95, rate(vllm:request_decode_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p95",
+                  "refId": "B"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "s",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Cache & Engine",
+          "collapse": false,
+          "height": "250px",
+          "panels": [
+            {
+              "type": "graph",
+              "id": 30,
+              "title": "KV Cache Usage",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "vllm:kv_cache_usage_perc{job=\"qwen25-14b\"}",
+                  "legendFormat": "KV Cache %",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "percentunit",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 5,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 31,
+              "title": "Prefix Cache Hit Rate",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "rate(vllm:prefix_cache_hits_total{job=\"qwen25-14b\"}[5m]) / (rate(vllm:prefix_cache_queries_total{job=\"qwen25-14b\"}[5m]) > 0)",
+                  "legendFormat": "Hit Rate",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "percentunit",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 33,
+              "title": "Running vs Waiting",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "vllm:num_requests_running{job=\"qwen25-14b\"}",
+                  "legendFormat": "Running",
+                  "refId": "A"
+                },
+                {
+                  "expr": "vllm:num_requests_waiting{job=\"qwen25-14b\"}",
+                  "legendFormat": "Waiting",
+                  "refId": "B"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "short",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            }
+          ]
+        },
+        {
+          "title": "Process & System",
+          "collapse": false,
+          "height": "250px",
+          "panels": [
+            {
+              "type": "graph",
+              "id": 40,
+              "title": "Process Memory",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "process_resident_memory_bytes{job=\"qwen25-14b\"}",
+                  "legendFormat": "RSS",
+                  "refId": "A"
+                },
+                {
+                  "expr": "process_virtual_memory_bytes{job=\"qwen25-14b\"}",
+                  "legendFormat": "Virtual",
+                  "refId": "B"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "bytes",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 41,
+              "title": "Process CPU",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "rate(process_cpu_seconds_total{job=\"qwen25-14b\"}[5m])",
+                  "legendFormat": "CPU cores",
+                  "refId": "A"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "s",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            },
+            {
+              "type": "graph",
+              "id": 42,
+              "title": "Iteration Tokens",
+              "span": 4,
+              "datasource": "$datasource",
+              "targets": [
+                {
+                  "expr": "histogram_quantile(0.50, rate(vllm:iteration_tokens_total_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p50",
+                  "refId": "A"
+                },
+                {
+                  "expr": "histogram_quantile(0.95, rate(vllm:iteration_tokens_total_bucket{job=\"qwen25-14b\"}[5m]))",
+                  "legendFormat": "p95",
+                  "refId": "B"
+                }
+              ],
+              "yaxes": [
+                {
+                  "format": "short",
+                  "show": true
+                },
+                {
+                  "format": "short",
+                  "show": false
+                }
+              ],
+              "lines": true,
+              "linewidth": 2,
+              "fill": 1,
+              "stack": false,
+              "bars": false,
+              "dashes": false,
+              "points": false,
+              "nullPointMode": "null as zero",
+              "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true,
+                "min": false,
+                "rightSide": false,
+                "total": false,
+                "values": true
+              },
+              "tooltip": {
+                "shared": true,
+                "sort": 2,
+                "value_type": "individual"
+              }
+            }
+          ]
+        }
+      ],
+      "refresh": "15s",
+      "schemaVersion": 14,
+      "tags": [
+        "vllm",
+        "inference",
+        "agentops"
+      ],
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "selected": true,
+              "text": "Prometheus",
+              "value": "Prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "multi": false,
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "queryValue": "",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          }
+        ]
+      },
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "AgentOps - Inference Metrics (vLLM)",
+      "uid": "agentops-inference",
+      "version": 1
+    }
