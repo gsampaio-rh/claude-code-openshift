@@ -1,39 +1,43 @@
-# ADR-010: Estrutura de diretorio infra/ para manifests e scripts
+# ADR-010: Repository directory structure
 
-**Status:** Accepted
+**Status:** Superseded (updated 2026-04-13)
 **Date:** 2026-04-08
 
 ## Contexto
 
-O repositorio acumulou diretorios top-level para cada componente de infraestrutura: `cluster/`, `agent/`, `inference/vllm/`, `inference/guardrails/`. Isso poluia o root do projeto e misturava infra com docs.
-
-A pasta `inference/` adicionava um nivel de nesting desnecessario — `vllm/` e `guardrails/` sao componentes independentes que nao precisam de um parent comum.
+Originalmente, todos os componentes viviam sob `infra/` (cluster, vllm, claude-code, guardrails, scripts). Com o crescimento do projeto, a separacao por concern ficou mais clara: agents, inference, guardrails e infra de cluster sao preocupacoes distintas.
 
 ## Decisao
 
-1. Agrupar todos os componentes de infraestrutura sob `infra/`
-2. Renomear `agent/` para `claude-code/` (nome mais descritivo)
-3. Promover `inference/vllm/` e `inference/guardrails/` para `infra/vllm/` e `infra/guardrails/` (eliminar nesting)
+Separar os componentes em diretorios top-level por concern:
+
+1. `agents/` — agentes (Claude Code)
+2. `inference/` — model serving (vLLM)
+3. `guardrails/` — safety (TrustyAI)
+4. `infra/` — apenas recursos de cluster (operators, namespaces, RBAC, quotas, Kata)
+5. `observability/` — stack de observabilidade (MLflow, OTEL, Grafana, dashboards)
+6. `scripts/` — orchestracao (deploy-all.sh, e2e-test.sh)
 
 ## Estrutura resultante
 
 ```
-infra/
-├── claude-code/     # Agent image, manifests, scripts
-├── cluster/         # Operators, namespaces, RBAC, quotas
-├── vllm/            # KServe model serving (ServingRuntime, InferenceService)
-└── guardrails/      # TrustyAI orchestrator e gateway
+├── agents/claude-code/   # Agent image, manifests, scripts
+├── inference/vllm/       # vLLM deployment manifests and scripts
+├── guardrails/           # TrustyAI orchestrator
+├── infra/cluster/        # Operators, namespaces, RBAC, quotas, Kata
+├── observability/        # MLflow, OTEL, Grafana, dashboards
+├── scripts/              # deploy-all.sh, e2e-test.sh
+└── docs/                 # Architecture, ADRs
 ```
 
 ## Racional
 
-- **Root limpo**: Apenas `docs/` e `infra/` no top-level (alem de config files)
-- **Flat > nested**: `infra/vllm/` em vez de `infra/inference/vllm/` — menos nesting, mais direto
-- **Nome descritivo**: `claude-code/` em vez de `agent/` — deixa claro qual agente
-- **Padrao consistente**: Cada componente tem `manifests/` e `scripts/` internamente
+- **Separation of concerns**: Cada diretorio top-level representa uma preocupacao distinta
+- **Navegacao intuitiva**: Encontrar componentes sem precisar lembrar que tudo vivia sob `infra/`
+- **Padrao consistente**: Cada componente mantem `manifests/` e `scripts/` internamente
 
 ## Consequences
 
-- Scripts usam `PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"` (3 niveis do scripts/ ate root)
-- Cross-references entre scripts sao entre siblings: `cd ../vllm` em vez de `cd ../../inference/vllm`
+- Scripts de orchestracao (`scripts/deploy-all.sh`) usam paths absolutos a partir de `PROJECT_ROOT`
+- Cross-references entre componentes usam caminhos relativos ao root do projeto
 - Docs atualizados com novos caminhos

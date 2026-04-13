@@ -53,7 +53,7 @@ stack. The only trade-off is that Grafana needs a bearer token for Thanos Querie
 vLLM :8080/metrics → ServiceMonitor → Prometheus (user workload) → Thanos Querier → Grafana
 ```
 
-- `infra/vllm/manifests/servicemonitor.yaml` — scrape every 15s
+- `inference/vllm/manifests/servicemonitor.yaml` — scrape every 15s
 - NetworkPolicy: `openshift-user-workload-monitoring` → `inference:8080`
 
 ### Agent metrics (OTLP push)

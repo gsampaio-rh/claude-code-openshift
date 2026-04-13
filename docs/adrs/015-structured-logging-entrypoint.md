@@ -40,9 +40,9 @@ Fields useful for observability: `session_id`, `duration_ms`, `input_tokens`, `o
 
 ## Files
 
-- `infra/claude-code/entrypoint.sh` — Container entrypoint
-- `infra/claude-code/claude-logged` — Wrapper script (installed to `/usr/local/bin/`)
-- `infra/claude-code/Dockerfile` — Updated CMD to use entrypoint
+- `agents/claude-code/entrypoint.sh` — Container entrypoint
+- `agents/claude-code/claude-logged` — Wrapper script (installed to `/usr/local/bin/`)
+- `agents/claude-code/Dockerfile` — Updated CMD to use entrypoint
 
 ## Consequences
 

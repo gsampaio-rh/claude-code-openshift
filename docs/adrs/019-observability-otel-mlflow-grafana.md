@@ -72,7 +72,7 @@ Key differences from the original design:
    requests by finish reason), not agent span metrics.
 
 **New manifests:**
-- `infra/vllm/manifests/servicemonitor.yaml` — ServiceMonitor for vLLM scrape
+- `inference/vllm/manifests/servicemonitor.yaml` — ServiceMonitor for vLLM scrape
 - `observability/grafana/rbac.yaml` — ServiceAccount + ClusterRoleBinding
 - `observability/dashboards/inference-metrics.json` — vLLM inference dashboard
 - `observability/otel/servicemonitor.yaml` — ServiceMonitor for OTEL Collector

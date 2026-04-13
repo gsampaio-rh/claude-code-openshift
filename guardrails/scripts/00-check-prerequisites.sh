@@ -23,7 +23,7 @@ if oc get deployment "$MODEL_NAME" -n "$NAMESPACE" &>/dev/null; then
   echo "  Deployment found. Ready replicas: ${READY:-0}"
 else
   echo "  ERROR: Deployment '$MODEL_NAME' not found in '$NAMESPACE'."
-  echo "  Deploy vLLM first: cd ../../vllm/scripts && ./01-deploy-model.sh"
+  echo "  Deploy vLLM first: cd ../../inference/vllm/scripts && ./01-deploy-model.sh"
   exit 1
 fi
 echo ""

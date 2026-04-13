@@ -74,5 +74,5 @@ Plus a writable `/tmp` volume mount.
 
 - Model serving uses an uncertified image — acceptable for PoC, revisit for production
 - If RHAIIS adds Anthropic Messages API in a future release, we can switch back
-- The `infra/vllm/manifests/deployment.yaml` pins the upstream image version explicitly
-- Validation script `infra/vllm/scripts/02-validate-model.sh` checks for `/v1/messages` availability
+- The `inference/vllm/manifests/deployment.yaml` pins the upstream image version explicitly
+- Validation script `inference/vllm/scripts/02-validate-model.sh` checks for `/v1/messages` availability

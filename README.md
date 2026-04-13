@@ -44,23 +44,23 @@ See [docs/PLAN.md](docs/PLAN.md) for the detailed sprint plan.
 ## Repository Structure
 
 ```
-├── docs/                   # PRD, architecture, sprint plan, ADRs
-│   ├── PRD.md              # Product requirements
-│   ├── ARCHITECTURE.md     # System architecture
-│   ├── PLAN.md             # Sprint plan with task status
-│   └── adrs/               # Architecture Decision Records (020 decisions)
+├── agents/
+│   └── claude-code/        # Agent image, Dockerfile, entrypoint, manifests, scripts
+├── inference/
+│   └── vllm/               # vLLM deployment manifests and scripts
+├── guardrails/             # TrustyAI Guardrails Orchestrator
 ├── infra/
-│   ├── cluster/            # Operators, namespaces, RBAC, quotas, Kata, MachineSets
-│   ├── vllm/               # vLLM deployment manifests and scripts
-│   ├── claude-code/        # Agent image, entrypoint, manifests, scripts
-│   ├── guardrails/         # TrustyAI Guardrails Orchestrator
-│   └── scripts/            # deploy-all.sh, e2e-test.sh
+│   └── cluster/            # Operators, namespaces, RBAC, quotas, Kata, MachineSets
 ├── observability/
 │   ├── otel/               # OTEL Collector (Claude Code metrics via OTLP)
 │   ├── mlflow/             # MLflow Tracking Server (deployment, service, PVC, route)
 │   ├── grafana/            # Grafana (inference + agent dashboards via Thanos Querier)
-│   ├── dashboards/         # Grafana dashboard JSON (inference-metrics, agent-metrics)
+│   ├── dashboards/         # Dashboard JSON (inference-metrics, agent-metrics)
+│   ├── console-dashboards/ # OpenShift console native dashboards (ConfigMap)
 │   └── scripts/            # 01-deploy-observability.sh, 99-verify.sh, config.sh
+├── scripts/                # deploy-all.sh, e2e-test.sh
+├── docs/                   # Architecture, ADRs, observability docs
+│   └── adrs/               # Architecture Decision Records
 └── .env.example            # Environment template (copy to .env)
 ```
 
@@ -80,12 +80,12 @@ cp .env.example .env
 # Edit .env with your cluster-specific values
 
 # Full deployment (cluster → Kata → vLLM → Claude Code → E2E test)
-./infra/scripts/deploy-all.sh
+./scripts/deploy-all.sh
 
 # Or deploy individual components
 ./infra/cluster/scripts/00-preflight-check.sh
-./infra/vllm/scripts/01-deploy-model.sh
-./infra/claude-code/scripts/01-deploy-standalone.sh
+./inference/vllm/scripts/01-deploy-model.sh
+./agents/claude-code/scripts/01-deploy-standalone.sh
 
 # Deploy observability (MLflow)
 ./observability/scripts/01-deploy-observability.sh
@@ -96,22 +96,21 @@ cp .env.example .env
 
 ```bash
 # Validate vLLM model serving
-./infra/vllm/scripts/02-validate-model.sh
+./inference/vllm/scripts/02-validate-model.sh
 
 # Test Claude Code agent
 oc exec deploy/claude-code-standalone -n agent-sandboxes -- claude -p "What is 2+2?"
 
 # Full end-to-end test
-./infra/scripts/e2e-test.sh
+./scripts/e2e-test.sh
 ```
 
 ## Documentation
 
-- [PRD](docs/PRD.md) — Problem statement, phased delivery, acceptance criteria
 - [Architecture](docs/ARCHITECTURE.md) — System layers, namespace layout, component contracts
-- [Sprint Plan](docs/PLAN.md) — Task checklist with status per sprint
+- [Observability](docs/OBSERVABILITY.md) — Metrics, tracing, dashboards
 - [Infrastructure Requirements](docs/infrastructure-requirements.md) — Cluster/GPU/bare-metal sizing
-- [ADRs](docs/adrs/) — Architecture Decision Records (020 decisions documented)
+- [ADRs](docs/adrs/) — Architecture Decision Records
 
 ## Tech Stack
 

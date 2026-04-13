@@ -27,7 +27,7 @@ echo ""
 
 if ! oc get namespace "$NAMESPACE" &>/dev/null; then
   echo "ERROR: Namespace '$NAMESPACE' not found."
-  echo "Run cluster setup first: infra/cluster/scripts/01-setup-cluster.sh"
+  echo "Run cluster setup first: ./infra/cluster/scripts/01-setup-cluster.sh"
   exit 1
 fi
 

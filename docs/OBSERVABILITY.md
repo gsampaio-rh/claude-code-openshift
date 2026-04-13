@@ -164,7 +164,7 @@ vLLM :8080/metrics → ServiceMonitor → Prometheus (user workload monitoring) 
 
 | File | Purpose |
 |---|---|
-| `infra/vllm/manifests/servicemonitor.yaml` | ServiceMonitor (scrape every 15s) |
+| `inference/vllm/manifests/servicemonitor.yaml` | ServiceMonitor (scrape every 15s) |
 | `observability/dashboards/inference-metrics.json` | Grafana dashboard JSON |
 
 ---

@@ -32,7 +32,7 @@ O Coder continua existindo como camada de UX para devs (Fase 3), mas o agente ro
 ## Deployment
 
 ```yaml
-# Pod standalone com Claude Code (ver infra/claude-code/manifests/ para versao completa)
+# Pod standalone com Claude Code (ver agents/claude-code/manifests/ para versao completa)
 apiVersion: v1
 kind: Pod
 metadata:
@@ -79,7 +79,7 @@ Na Fase 1, aponta direto pro vLLM (sem Guardrails, que so vem na Fase 2). Na Fas
 ## Consequences
 
 - Fase 1 do PRD inclui deploy e validacao do Claude Code standalone
-- Container image base (UBI9 nodejs-22 + Claude Code CLI) buildada via `infra/claude-code/scripts/build-image.sh`
+- Container image base (UBI9 nodejs-22 + Claude Code CLI) buildada via `agents/claude-code/scripts/build-image.sh`
 - ConfigMap com env vars do agente criado no namespace `agent-sandboxes` (reusavel pelo Coder)
 - Criterio de aceitacao novo: Claude Code responde com modelo local antes do Coder existir
 - Arquitetura ganha uma "Agent Layer" explicita, separada da CDE Layer

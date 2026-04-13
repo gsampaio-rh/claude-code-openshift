@@ -2,8 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INFRA_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-PROJECT_ROOT="$(cd "$INFRA_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+INFRA_DIR="$PROJECT_ROOT/infra"
+AGENTS_DIR="$PROJECT_ROOT/agents"
+INFERENCE_DIR="$PROJECT_ROOT/inference"
+GUARDRAILS_DIR="$PROJECT_ROOT/guardrails"
 
 usage() {
   cat <<EOF
@@ -140,17 +143,17 @@ fi
 
 if [[ "$SKIP_VLLM" == "false" ]]; then
   run_step "vLLM namespace setup + GPU check" \
-    bash "$INFRA_DIR/vllm/scripts/00-setup-namespace.sh"
+    bash "$INFERENCE_DIR/vllm/scripts/00-setup-namespace.sh"
 
   run_step "GPU infrastructure validation" \
-    bash "$INFRA_DIR/vllm/scripts/03-validate-gpu.sh"
+    bash "$INFERENCE_DIR/vllm/scripts/03-validate-gpu.sh"
 
   run_step "vLLM model deployment" \
-    bash "$INFRA_DIR/vllm/scripts/01-deploy-model.sh"
+    bash "$INFERENCE_DIR/vllm/scripts/01-deploy-model.sh"
 
   if [[ "$SKIP_VERIFY" == "false" ]]; then
     run_step "vLLM validation" \
-      bash "$INFRA_DIR/vllm/scripts/02-validate-model.sh"
+      bash "$INFERENCE_DIR/vllm/scripts/02-validate-model.sh"
   else
     skip_step "vLLM validation"
   fi
@@ -165,17 +168,17 @@ fi
 
 if [[ "$SKIP_AGENT" == "false" ]]; then
   run_step "Claude Code setup check" \
-    bash "$INFRA_DIR/claude-code/scripts/00-setup.sh"
+    bash "$AGENTS_DIR/claude-code/scripts/00-setup.sh"
 
   run_step "Claude Code image build" \
-    bash "$INFRA_DIR/claude-code/scripts/build-image.sh"
+    bash "$AGENTS_DIR/claude-code/scripts/build-image.sh"
 
   run_step "Claude Code standalone deploy" \
-    bash "$INFRA_DIR/claude-code/scripts/01-deploy-standalone.sh"
+    bash "$AGENTS_DIR/claude-code/scripts/01-deploy-standalone.sh"
 
   if [[ "$SKIP_VERIFY" == "false" ]]; then
     run_step "Claude Code verification" \
-      bash "$INFRA_DIR/claude-code/scripts/99-verify.sh"
+      bash "$AGENTS_DIR/claude-code/scripts/99-verify.sh"
   else
     skip_step "Claude Code verification"
   fi
@@ -207,14 +210,14 @@ fi
 
 if [[ "$SKIP_GUARDRAILS" == "false" ]]; then
   run_step "Guardrails prerequisite check" \
-    bash "$INFRA_DIR/guardrails/scripts/00-check-prerequisites.sh"
+    bash "$GUARDRAILS_DIR/scripts/00-check-prerequisites.sh"
 
   run_step "Guardrails deployment" \
-    bash "$INFRA_DIR/guardrails/scripts/01-deploy-guardrails.sh"
+    bash "$GUARDRAILS_DIR/scripts/01-deploy-guardrails.sh"
 
   if [[ "$SKIP_VERIFY" == "false" ]]; then
     run_step "Guardrails verification" \
-      bash "$INFRA_DIR/guardrails/scripts/99-verify.sh"
+      bash "$GUARDRAILS_DIR/scripts/99-verify.sh"
   else
     skip_step "Guardrails verification"
   fi
@@ -228,7 +231,7 @@ fi
 
 if [[ "$SKIP_VERIFY" == "false" ]]; then
   run_step "End-to-end validation" \
-    bash "$INFRA_DIR/scripts/e2e-test.sh"
+    bash "$PROJECT_ROOT/scripts/e2e-test.sh"
 else
   skip_step "E2E validation"
 fi

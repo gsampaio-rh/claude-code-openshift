@@ -31,7 +31,7 @@ spec:
         node.kubernetes.io/instance-type: m5.metal
       containers:
         - name: claude-code
-          # Built via: oc start-build claude-code-agent --from-dir=infra/claude-code -n agent-sandboxes
+          # Built via: oc start-build claude-code-agent --from-dir=agents/claude-code -n agent-sandboxes
           image: image-registry.openshift-image-registry.svc:5000/agent-sandboxes/claude-code-agent:latest
           envFrom:
             - configMapRef:

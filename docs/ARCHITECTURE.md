@@ -389,7 +389,7 @@ sequenceDiagram
 | `--enforce-eager` | desativado | CUDA graphs + torch.compile ativados. L40S tem margem de VRAM. |
 | `--enable-chunked-prefill` | ativado | Permite processar prefill em chunks, reduz memory spikes em prompts grandes (~12K system prompt) |
 | `--tool-call-parser=hermes` | hermes | Parser de tool calls compativel com Qwen (template Hermes) |
-| `model-cache` volume | PVC 30Gi (gp3-csi) | Modelo (~16GB com cache) persiste entre restarts. PVC criado via `infra/vllm/manifests/pvc.yaml`. |
+| `model-cache` volume | PVC 30Gi (gp3-csi) | Modelo (~16GB com cache) persiste entre restarts. PVC criado via `inference/vllm/manifests/pvc.yaml`. |
 | Deployment strategy | `Recreate` | PVC RWO nao suporta multi-attach cross-node. Recreate garante volume liberado antes de criar pod novo. |
 | `nodeSelector` | `nvidia.com/gpu.product: NVIDIA-L40S` | Garante scheduling no node correto |
 

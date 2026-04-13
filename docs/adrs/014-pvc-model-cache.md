@@ -35,7 +35,7 @@ Replace the `emptyDir` with a **PersistentVolumeClaim** (30Gi, `gp3-csi`, `ReadW
 ## Manifest
 
 ```yaml
-# infra/vllm/manifests/pvc.yaml
+# inference/vllm/manifests/pvc.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

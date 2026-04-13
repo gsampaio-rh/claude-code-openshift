@@ -29,7 +29,7 @@ Replace KServe `ServingRuntime` + `InferenceService` with a plain Kubernetes **D
 ## Manifest Structure
 
 ```
-infra/vllm/manifests/
+inference/vllm/manifests/
 ├── deployment.yaml    # Deployment with vLLM container, GPU, probes
 ├── service.yaml       # ClusterIP Service on port 8080
 └── kustomization.yaml # References deployment.yaml + service.yaml

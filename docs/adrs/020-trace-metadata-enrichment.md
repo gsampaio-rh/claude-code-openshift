@@ -19,9 +19,9 @@ metadata (platform, model, gpu, runtime). Per-trace tags add `pod_name` and
 `node_name` which only become useful with **multiple concurrent agents**.
 
 **To re-enable:**
-1. Uncomment `AGENTOPS_*` vars in `infra/claude-code/manifests/configmap.yaml`
-2. Uncomment Downward API env vars in `infra/claude-code/manifests/standalone-pod.yaml`
-3. Uncomment hook registration block in `infra/claude-code/entrypoint.sh`
+1. Uncomment `AGENTOPS_*` vars in `agents/claude-code/manifests/configmap.yaml`
+2. Uncomment Downward API env vars in `agents/claude-code/manifests/standalone-pod.yaml`
+3. Uncomment hook registration block in `agents/claude-code/entrypoint.sh`
 4. Rebuild and redeploy the agent image
 
 All code remains in-repo (`set-trace-tags.py` stays in the image).
@@ -154,13 +154,13 @@ after the MLflow hook creates the trace.
 
 | File | Role |
 |---|---|
-| `infra/claude-code/set-trace-tags.py` | Stop hook script |
-| `infra/claude-code/entrypoint.sh` | Hook registration logic |
-| `infra/claude-code/manifests/standalone-pod.yaml` | Downward API env vars |
-| `infra/claude-code/manifests/configmap.yaml` | `AGENTOPS_*` static metadata |
+| `agents/claude-code/set-trace-tags.py` | Stop hook script |
+| `agents/claude-code/entrypoint.sh` | Hook registration logic |
+| `agents/claude-code/manifests/standalone-pod.yaml` | Downward API env vars |
+| `agents/claude-code/manifests/configmap.yaml` | `AGENTOPS_*` static metadata |
 | `observability/scripts/01-deploy-observability.sh` | Experiment-level tags |
 | `observability/scripts/99-verify.sh` | Verification (sections 5-6) |
-| `infra/scripts/e2e-test.sh` | E2E validation (section 8) |
+| `scripts/e2e-test.sh` | E2E validation (section 8) |
 
 ## Alternatives Considered
 

@@ -28,7 +28,7 @@ Usar `registry.access.redhat.com/ubi9/nodejs-22` como base image.
 
 ## Consequences
 
-- Dockerfile em `infra/claude-code/Dockerfile` usa UBI como base
+- Dockerfile em `agents/claude-code/Dockerfile` usa UBI como base
 - Claude Code CLI instalado via `curl -fsSL https://claude.ai/install.sh | bash` (metodo oficial, binario em `~/.local/bin`)
 - `npm install -g @anthropic-ai/claude-code` nao eh mais o metodo recomendado pela Anthropic
 
