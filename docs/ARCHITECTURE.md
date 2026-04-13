@@ -479,6 +479,7 @@ sequenceDiagram
 | Componente | Tecnologia | Namespace | ADR |
 |---|---|---|---|
 | Agent tracing | MLflow Tracking Server v3.10.1 | `observability` | [ADR-019](../adrs/019-observability-otel-mlflow-grafana.md) |
+| Agent metrics | OTEL Collector → Prometheus → Grafana | `observability` | [ADR-019](../adrs/019-observability-otel-mlflow-grafana.md) |
 | Model metrics | OpenShift user workload monitoring (Prometheus) + ServiceMonitor | `inference` | — |
 | Dashboards | Grafana OSS 11.5.2 → Thanos Querier | `observability` | — |
 | Storage | SQLite + PVC (PoC); PostgreSQL + S3 (prod) | `observability` | — |
@@ -488,8 +489,10 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     Agent["Claude Code"] -->|"mlflow autolog claude"| MLflow["MLflow (traces + experiments)"]
-    vLLM["vLLM /metrics"] -->|"ServiceMonitor"| Prom["Prometheus (user workload)"]
-    Prom -->|"Thanos Querier"| Grafana["Grafana (inference dashboard)"]
+    Agent -->|"OTLP metrics"| OTEL["OTEL Collector"]
+    OTEL -->|":8889/metrics"| Prom["Prometheus (user workload)"]
+    vLLM["vLLM /metrics"] -->|"ServiceMonitor"| Prom
+    Prom -->|"Thanos Querier"| Grafana["Grafana (dashboards)"]
 ```
 
 #### Agent tracing (MLflow)

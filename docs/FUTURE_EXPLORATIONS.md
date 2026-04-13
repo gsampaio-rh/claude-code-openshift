@@ -71,79 +71,54 @@ Temas que ficam **fora do núcleo imediato do PoC**, mas merecem tempo dedicado.
 
 ---
 
-## Sprint C — Observability do agente (Claude Code OTel → Prometheus)
+## Sprint C — Observability do agente (Claude Code OTel → Prometheus) ✅ Concluído
 
-**Objetivo:** Exportar métricas e eventos do **agente Claude Code** para o Prometheus do cluster via OpenTelemetry, complementando a observabilidade de inferência (Sprint A) com visibilidade sobre o **uso, custo, e comportamento do agente**.
+**Objetivo:** Exportar métricas do **agente Claude Code** para o Prometheus do cluster via OpenTelemetry, complementando a observabilidade de inferência (Sprint A) com visibilidade sobre o **uso, custo, e comportamento do agente**.
 
-**Contexto:** Claude Code tem suporte nativo a OpenTelemetry (metrics + logs/events + traces beta). Basta setar env vars no pod do agente. Referência oficial: [Claude Code Monitoring](https://docs.anthropic.com/en/docs/claude-code/monitoring).
+**Implementado (2026-04-13):**
 
-**Métricas disponíveis (built-in):**
+- **OTEL Collector re-habilitado** no namespace `observability` — recebe métricas OTLP do agente e exporta via Prometheus endpoint (:8889)
+- **Claude Code telemetry** habilitado via `CLAUDE_CODE_ENABLE_TELEMETRY=1` + `OTEL_METRICS_EXPORTER=otlp`
+- Usa `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` (metrics-specific) para não conflitar com MLflow tracing
+- **ServiceMonitor** para o OTEL Collector (`observability/otel/servicemonitor.yaml`)
+- **Dashboard "AgentOps — Claude Code Agent Metrics"** (`observability/dashboards/agent-metrics.json`):
+  - **Token Usage** — input, output, cache read/creation, total tokens, estimated cost (USD)
+  - **Token Usage Over Time** — rate por tipo (stacked), tokens por modelo
+  - **Sessions & Activity** — sessions started, active time, lines of code, commits, PRs, unique sessions
+  - **Lines of Code** (added vs removed), **Active Time** (user vs CLI)
+  - **Cost & Tools** — cumulative cost over time, tool decisions (accept/reject)
+- **NetworkPolicy** atualizada: agent → OTEL Collector (:4318), Prometheus → OTEL Collector (:8889)
 
-| Métrica | Descrição |
+**Decisão de arquitetura: OTLP → OTEL Collector (opção 2)**
+
+A opção 1 (Prometheus exporter direto, `OTEL_METRICS_EXPORTER=prometheus`) **não funciona** para o caso de uso atual: o exporter expõe um HTTP server na porta 9464, mas ele só roda enquanto o processo `claude` está ativo. Como sessões são efêmeras (`claude -p "..." → exit`, o entrypoint é `sleep infinity`), o endpoint desaparece entre sessões e o Prometheus perde os dados. O OTEL Collector resolve isso: métricas são **pushed** durante a sessão e o collector **persiste** e agrega os dados mesmo após o processo terminar.
+
+**Métricas capturadas (validadas):**
+
+| Métrica Prometheus | Labels |
 |---|---|
-| `claude_code.token.usage` | Tokens consumidos (input, output, cacheRead, cacheCreation) por modelo |
-| `claude_code.cost.usage` | Custo estimado em USD por sessão |
-| `claude_code.session.count` | Sessões iniciadas |
-| `claude_code.lines_of_code.count` | Linhas adicionadas/removidas |
-| `claude_code.commit.count` | Commits criados |
-| `claude_code.pull_request.count` | PRs criados |
-| `claude_code.code_edit_tool.decision` | Accept/reject de ferramentas de edição |
-| `claude_code.active_time.total` | Tempo ativo (user interaction vs CLI processing) |
+| `claude_code_token_usage_tokens_total` | `type` (input/output/cacheRead/cacheCreation), `model`, `session_id` |
+| `claude_code_cost_usage_USD_total` | `model`, `session_id` |
+| `claude_code_session_count_total` | `session_id` |
+| `claude_code_lines_of_code_count_total` | `type` (added/removed), `session_id` |
+| `claude_code_commit_count_total` | `session_id` |
+| `claude_code_pull_request_count_total` | `session_id` |
+| `claude_code_code_edit_tool_decision_total` | `tool_name`, `decision`, `session_id` |
+| `claude_code_active_time_total_s_total` | `type` (user/cli), `session_id` |
 
-**Eventos (via logs exporter):**
+**Critérios de saída:**
 
-- `claude_code.user_prompt` — cada prompt submetido (length, opcionalmente conteúdo)
-- `claude_code.tool_result` — execução de tools (nome, sucesso, duração, erro)
-- `claude_code.api_request` — requests ao LLM (modelo, custo, tokens, duração)
-- `claude_code.api_error` — erros de API (status code, retries)
-- `claude_code.tool_decision` — decisões accept/reject de tools
+- [x] Métricas do Claude Code (tokens, custo, sessões) visíveis no Grafana via Prometheus
+- [x] Dashboard de agente com breakdown por sessão
+- [x] Decisão documentada: OTLP → OTEL Collector (Prometheus exporter não funciona para sessões efêmeras)
+- [x] ServiceMonitor e NetworkPolicy no repo
 
-**Traces (beta):**
+**Não implementado (futuro):**
 
-- Spans ligando prompt → API requests → tool executions
-- `TRACEPARENT` propagado para subprocessos (distributed tracing E2E)
-- Requer `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1` e `OTEL_TRACES_EXPORTER=otlp`
-
-**Opções de arquitetura no OpenShift:**
-
-1. **Prometheus exporter direto** — `OTEL_METRICS_EXPORTER=prometheus` expõe métricas no pod; scrape via `PodMonitor`. Simples, sem collector intermediário, métricas vão direto pro user workload monitoring (como vLLM).
-2. **OTLP → OTEL Collector → Prometheus** — `OTEL_METRICS_EXPORTER=otlp` envia pro OTEL Collector (já existe no repo, desabilitado). O collector agrega, transforma, e exporta pro Prometheus. Mais flexível (permite routing de logs/traces), mas adiciona componente.
-3. **OTLP direto pro Thanos** — Requer remote-write receiver, não suportado nativamente pelo user workload monitoring.
-
-**Env vars mínimas no ConfigMap do agente:**
-
-```
-CLAUDE_CODE_ENABLE_TELEMETRY=1
-OTEL_METRICS_EXPORTER=prometheus
-# ou para OTLP:
-# OTEL_METRICS_EXPORTER=otlp
-# OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-# OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.observability.svc.cluster.local:4317
-```
-
-**Atributos úteis para multi-agente:**
-
-- `session.id` — correlacionar métricas por sessão
-- `user.account_uuid` / `user.email` — identificar quem está usando (resolve a questão "clientes que estão usando" do Sprint A)
-- `organization.id` — segmentar por org
-- `OTEL_RESOURCE_ATTRIBUTES` — custom labels (`team.id`, `cost_center`, etc.)
-
-**Escopo sugerido:**
-
-- Habilitar `OTEL_METRICS_EXPORTER=prometheus` no pod do agente e criar `PodMonitor`
-- Adicionar painéis no Grafana: tokens por agente, custo por sessão, tools mais usadas, erros de API
-- Avaliar se logs/events justificam re-habilitar OTEL Collector (opção 2) ou se Prometheus-only é suficiente
-- Opcionalmente habilitar traces beta para correlação prompt → tools → LLM calls
-- Testar `OTEL_RESOURCE_ATTRIBUTES` com labels de equipe para multi-tenant
-
-**Critérios de saída (exemplo):**
-
-- [ ] Métricas do Claude Code (tokens, custo, sessões) visíveis no Grafana via Prometheus
-- [ ] Dashboard de agente com breakdown por sessão/usuário
-- [ ] Decisão documentada: Prometheus exporter vs OTLP collector
-- [ ] NetworkPolicy e PodMonitor/ServiceMonitor no repo
-
-**Relação com ADR-019:** O OTEL Collector + Prometheus + Grafana do Sprint 2 foram desabilitados porque geravam spans genéricos sem valor vs. MLflow autolog. Esta sprint é diferente: usa as **métricas nativas do Claude Code** (token counts, cost, tool usage), não spans derivados via spanmetrics. Complementa MLflow (traces ricos) com Prometheus (métricas operacionais agregadas).
+- Eventos/logs via `OTEL_LOGS_EXPORTER=otlp` (prompt events, tool results, API errors)
+- Traces beta via `OTEL_TRACES_EXPORTER=otlp` (distributed tracing prompt → tools → LLM)
+- `OTEL_RESOURCE_ATTRIBUTES` para labels de equipe em multi-tenant
+- Breakdown por `user.account_uuid` / `user.email` (requer OAuth no agente)
 
 ---
 

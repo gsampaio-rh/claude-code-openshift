@@ -44,7 +44,8 @@ dashboards displayed operational metrics. However, the stack has been
 
 ```
 Claude Code Agent
-  └─ mlflow autolog claude ──▸ MLflow Tracking Server (traces + experiments)
+  ├─ mlflow autolog claude ──▸ MLflow Tracking Server (traces + experiments)
+  └─ OTLP metrics (OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) ──▸ OTEL Collector ──▸ Prometheus ──▸ Grafana
 
 vLLM /metrics ──▸ ServiceMonitor ──▸ Prometheus (user workload) ──▸ Thanos Querier ──▸ Grafana
 ```
@@ -73,10 +74,30 @@ Key differences from the original design:
 - `infra/vllm/manifests/servicemonitor.yaml` — ServiceMonitor for vLLM scrape
 - `observability/grafana/rbac.yaml` — ServiceAccount + ClusterRoleBinding
 - `observability/dashboards/inference-metrics.json` — vLLM inference dashboard
+- `observability/otel/servicemonitor.yaml` — ServiceMonitor for OTEL Collector
+- `observability/dashboards/agent-metrics.json` — Claude Code agent metrics dashboard
 
 **NetworkPolicy additions:**
 - `openshift-user-workload-monitoring` → `inference:8080` (Prometheus scrape)
 - `observability` → `openshift-monitoring:9091` (Grafana → Thanos Querier)
+- `agent-sandboxes` → `observability:4318` (OTLP metrics push)
+- `openshift-user-workload-monitoring` → `observability:8889` (Prometheus scrape OTEL Collector)
+
+### OTEL Collector re-enabled for agent metrics (2026-04-13)
+
+The OTEL Collector was **re-enabled** — not for spanmetrics (original design) but to
+receive **native Claude Code metrics** via OTLP and expose them to Prometheus.
+
+**Why OTLP instead of Prometheus exporter:** Claude Code sessions are ephemeral
+(`claude -p "..." → exit`). The `OTEL_METRICS_EXPORTER=prometheus` option starts an
+HTTP server on port 9464 that only lives during the `claude` process. Since the
+container's entrypoint is `sleep infinity`, the metrics endpoint disappears between
+sessions and Prometheus misses the data. OTLP push solves this: metrics are sent to
+the OTEL Collector during the session; the collector persists and aggregates them.
+
+**Key design choice:** Uses `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` (metrics-specific)
+instead of `OTEL_EXPORTER_OTLP_ENDPOINT` (general). This avoids hijacking MLflow's
+internal OTEL SDK — the same conflict documented in Lesson #1 above.
 
 > Trace metadata enrichment (Downward API, `set-trace-tags.py` Stop hook) is
 > documented in [ADR-020](020-trace-metadata-enrichment.md).
@@ -99,7 +120,7 @@ Deploy a three-component stack in the `observability` namespace:
 | Component | Image | Role | Status |
 |---|---|---|---|
 | **MLflow Tracking Server** | `mlflow:v3.10.1` | Trace storage, experiment tracking UI, artifact store | **Active** |
-| **OTEL Collector** (contrib) | `otel-collector-contrib:0.120.0` | Receives OTLP spans, converts to RED metrics via `spanmetrics` connector | Disabled |
+| **OTEL Collector** (contrib) | `otel-collector-contrib:0.120.0` | Receives OTLP metrics from Claude Code, exports via Prometheus | **Active** (metrics only) |
 | **Grafana OSS** | `grafana:11.5.2` | Inference dashboards querying Thanos Querier (user workload metrics) | **Active** (inference only) |
 
 ### Data flow (original design)

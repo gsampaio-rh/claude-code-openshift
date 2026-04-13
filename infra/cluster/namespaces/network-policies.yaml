@@ -62,13 +62,15 @@ spec:
       ports:
         - port: 8443
           protocol: TCP
-    # Observability: MLflow Tracking (mlflow autolog claude)
+    # Observability: MLflow Tracking + OTEL Collector (metrics push)
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: observability
       ports:
         - port: 5000
+          protocol: TCP
+        - port: 4318
           protocol: TCP
     # External registries (GitHub, npm) — controlled egress
     - to:
@@ -222,6 +224,22 @@ spec:
               kubernetes.io/metadata.name: inference
       ports:
         - port: 5000
+          protocol: TCP
+    # Agent OTLP metrics push to OTEL Collector
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: agent-sandboxes
+      ports:
+        - port: 4318
+          protocol: TCP
+    # Prometheus user workload monitoring (OTEL Collector metrics scrape)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-user-workload-monitoring
+      ports:
+        - port: 8889
           protocol: TCP
     # UI access from OpenShift ingress controller (Routes)
     - from:

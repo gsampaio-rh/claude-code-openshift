@@ -1,0 +1,258 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Token Usage",
+      "type": "row"
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" }, "unit": "short" } },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "id": 1,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Input Tokens",
+      "type": "stat",
+      "targets": [{ "expr": "sum(claude_code_token_usage_tokens_total{type=\"input\", job=\"otel-collector\"})", "legendFormat": "input" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "green" }, "unit": "short" } },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Output Tokens",
+      "type": "stat",
+      "targets": [{ "expr": "sum(claude_code_token_usage_tokens_total{type=\"output\", job=\"otel-collector\"})", "legendFormat": "output" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "orange" }, "unit": "short" } },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Cache Read Tokens",
+      "type": "stat",
+      "targets": [{ "expr": "sum(claude_code_token_usage_tokens_total{type=\"cacheRead\", job=\"otel-collector\"})", "legendFormat": "cacheRead" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" }, "unit": "short" } },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Cache Creation Tokens",
+      "type": "stat",
+      "targets": [{ "expr": "sum(claude_code_token_usage_tokens_total{type=\"cacheCreation\", job=\"otel-collector\"})", "legendFormat": "cacheCreation" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "text" }, "unit": "short" } },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "id": 5,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Total Tokens (All Types)",
+      "type": "stat",
+      "targets": [{ "expr": "sum(claude_code_token_usage_tokens_total{job=\"otel-collector\"})", "legendFormat": "total" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "yellow" }, "unit": "currencyUSD" } },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "id": 6,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Estimated Cost",
+      "type": "stat",
+      "targets": [{ "expr": "sum(claude_code_cost_usage_USD_total{job=\"otel-collector\"})", "legendFormat": "cost" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 20, "stacking": { "mode": "normal" } },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "input" }, "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "output" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "cacheRead" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "cacheCreation" }, "properties": [{ "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "id": 7,
+      "title": "Token Usage Over Time",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum by (type) (rate(claude_code_token_usage_tokens_total{job=\"otel-collector\"}[5m]))", "legendFormat": "{{type}}" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "id": 8,
+      "title": "Tokens by Model",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum by (model) (rate(claude_code_token_usage_tokens_total{job=\"otel-collector\"}[5m]))", "legendFormat": "{{model}}" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "id": 200,
+      "title": "Sessions & Activity",
+      "type": "row"
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" }, "unit": "short" } },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 14 },
+      "id": 10,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Sessions Started",
+      "type": "stat",
+      "targets": [{ "expr": "sum(claude_code_session_count_total{job=\"otel-collector\"})", "legendFormat": "sessions" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "green" }, "unit": "s" } },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 14 },
+      "id": 11,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Active Time (Total)",
+      "type": "stat",
+      "targets": [{ "expr": "sum(claude_code_active_time_total_s_total{job=\"otel-collector\"})", "legendFormat": "total" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "orange" }, "unit": "short" } },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 14 },
+      "id": 12,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Lines of Code Changed",
+      "type": "stat",
+      "targets": [{ "expr": "sum(claude_code_lines_of_code_count_total{job=\"otel-collector\"})", "legendFormat": "total" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" }, "unit": "short" } },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 14 },
+      "id": 13,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Commits Created",
+      "type": "stat",
+      "targets": [{ "expr": "sum(claude_code_commit_count_total{job=\"otel-collector\"})", "legendFormat": "commits" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "red" }, "unit": "short" } },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 14 },
+      "id": 14,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Pull Requests Created",
+      "type": "stat",
+      "targets": [{ "expr": "sum(claude_code_pull_request_count_total{job=\"otel-collector\"})", "legendFormat": "PRs" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "semi-dark-blue" }, "unit": "short" } },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 14 },
+      "id": 19,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Unique Sessions",
+      "description": "Number of distinct session IDs seen",
+      "type": "stat",
+      "targets": [{ "expr": "count(count by (session_id) (claude_code_session_count_total{job=\"otel-collector\"}))", "legendFormat": "sessions" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 20, "stacking": { "mode": "normal" } },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "added" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "removed" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "id": 15,
+      "title": "Lines of Code (Added vs Removed)",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum by (type) (rate(claude_code_lines_of_code_count_total{job=\"otel-collector\"}[5m]))", "legendFormat": "{{type}}" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 },
+          "unit": "s"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "user" }, "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "cli" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "id": 16,
+      "title": "Active Time (User vs CLI)",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum by (type) (rate(claude_code_active_time_total_s_total{job=\"otel-collector\"}[5m]))", "legendFormat": "{{type}}" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "id": 300,
+      "title": "Cost & Tools",
+      "type": "row"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10 },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
+      "id": 21,
+      "title": "Cumulative Cost Over Time",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum(claude_code_cost_usage_USD_total{job=\"otel-collector\"})", "legendFormat": "total cost (USD)" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "bars", "fillOpacity": 80, "stacking": { "mode": "normal" } },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+      "id": 20,
+      "title": "Tool Decisions (Accept / Reject)",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum by (tool_name, decision) (rate(claude_code_code_edit_tool_decision_total{job=\"otel-collector\"}[5m]))", "legendFormat": "{{tool_name}} — {{decision}}" }],
+      "datasource": { "type": "prometheus", "uid": "PBA87B4870F3F41AD" }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["claude-code", "agent", "otel"],
+  "templating": { "list": [] },
+  "time": { "from": "now-3h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AgentOps — Claude Code Agent Metrics",
+  "uid": "agent-metrics-otel",
+  "version": 1
+}

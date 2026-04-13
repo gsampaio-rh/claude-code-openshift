@@ -272,6 +272,13 @@ Este eh o checkpoint mais importante do PoC. Se Claude Code + Qwen 2.5 14B nao p
   - [x] Atualizar NetworkPolicy: `openshift-user-workload-monitoring` → `inference:8080` (scrape) e `observability` → `openshift-monitoring:9091` (Grafana → Thanos)
   - [x] Validar dashboard sob carga de teste (25 requests)
   - [x] Atualizar ADR-019, ARCHITECTURE.md, FUTURE_EXPLORATIONS.md
+- [x] **Observabilidade do agente (Claude Code OTel)** — Sprint C de [FUTURE_EXPLORATIONS.md](FUTURE_EXPLORATIONS.md):
+  - [x] Habilitar `CLAUDE_CODE_ENABLE_TELEMETRY=1` + `OTEL_METRICS_EXPORTER=otlp` no ConfigMap
+  - [x] Re-habilitar OTEL Collector (metrics-only: OTLP receiver → Prometheus exporter)
+  - [x] Criar ServiceMonitor pro OTEL Collector (`observability/otel/servicemonitor.yaml`)
+  - [x] Dashboard "AgentOps — Claude Code Agent Metrics" (tokens, cost, sessions, lines of code, tool decisions)
+  - [x] Atualizar NetworkPolicy: `agent-sandboxes` → `observability:4318` (OTLP), Prometheus → `observability:8889` (scrape)
+  - [x] Validar E2E: Claude session → OTLP push → OTEL Collector → Prometheus → Grafana
 
 **Problemas encontrados e resolvidos:**
 - OTEL Collector crashloop: `health_check` extension nao estava configurada, readiness probe em `:13133` falhava. Corrigido adicionando `extensions.health_check`.
@@ -289,14 +296,17 @@ Este eh o checkpoint mais importante do PoC. Se Claude Code + Qwen 2.5 14B nao p
 - `.claude/settings.json` precisa de `chmod g+w`: OpenShift roda com UID aleatorio mas GID=0. Sem group-write, `mlflow autolog claude` nao consegue escrever hooks.
 - NetworkPolicy: agent-sandboxes egress e observability ingress precisam permitir porta 5000 (MLflow) alem de 4317/4318 (OTLP).
 - Simplificacao: OTEL Collector + Prometheus + Grafana adicionavam complexidade (crashloops, NetworkPolicy, spanmetrics config) sem valor suficiente pro PoC. `mlflow autolog claude` fornece traces ricos nativamente. Componentes desabilitados, manifests mantidos.
+- `OTEL_METRICS_EXPORTER=prometheus` nao funciona para sessoes efemeras: o exporter expoe HTTP server que morre quando o processo `claude` sai. Fix: usar `OTEL_METRICS_EXPORTER=otlp` com `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` (metrics-specific) apontando pro OTEL Collector. Evita conflito com MLflow.
+- `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` (nao `OTEL_EXPORTER_OTLP_ENDPOINT`): usar o endpoint metrics-specific evita hijacking do OTEL SDK interno do MLflow (mesmo lesson learned do Sprint 2, mas agora resolvido com granularidade por sinal).
 
 **Artefatos:**
 
 ```
 observability/
-├── otel/                            # (disabled) OTEL Collector — kept for future re-enablement
-│   ├── collector.yaml
-│   └── service.yaml
+├── otel/                            # (active) OTEL Collector — receives Claude Code OTLP metrics
+│   ├── collector.yaml               # ConfigMap + Deployment (OTLP receiver → Prometheus exporter)
+│   ├── service.yaml
+│   └── servicemonitor.yaml          # Prometheus scrape on :8889
 ├── prometheus/                      # (disabled) Prometheus — kept for future re-enablement
 │   ├── configmap.yaml
 │   ├── deployment.yaml
@@ -756,9 +766,9 @@ claude-code-openshift/
 │   ├── auth/                        # AuthPolicy + OPA
 │   └── mcp-servers/                 # GitHub, filesystem
 ├── observability/
-│   ├── otel/                        # OTEL Collector (disabled — kept for future use)
+│   ├── otel/                        # OTEL Collector (active — Claude Code metrics via OTLP)
 │   ├── mlflow/                      # MLflow Tracking Server v3.10.1 (active)
-│   ├── prometheus/                  # Prometheus (disabled — kept for future use)
+│   ├── prometheus/                  # Prometheus (disabled — using user workload monitoring)
 │   ├── grafana/                     # Grafana (active — inference metrics via Thanos Querier)
 │   ├── dashboards/                  # Grafana dashboard JSON (inference-metrics.json)
 │   └── scripts/                     # Deploy + verify scripts

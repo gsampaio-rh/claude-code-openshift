@@ -39,6 +39,15 @@ data:
   # MLflow's internal OTEL SDK, preventing traces from reaching MLflow.
   MLFLOW_TRACKING_URI: "http://mlflow-tracking.observability.svc.cluster.local:5000"
   MLFLOW_EXPERIMENT_NAME: "claude-code-agents"
+  # OTel metrics: OTLP push to OTEL Collector (persistent) → Prometheus.
+  # Uses metrics-specific endpoint to avoid hijacking MLflow's OTEL SDK.
+  # Ref: https://docs.anthropic.com/en/docs/claude-code/monitoring
+  CLAUDE_CODE_ENABLE_TELEMETRY: "1"
+  OTEL_METRICS_EXPORTER: "otlp"
+  OTEL_EXPORTER_OTLP_METRICS_PROTOCOL: "http/protobuf"
+  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318/v1/metrics"
+  OTEL_LOGS_EXPORTER: "none"
+  OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: "cumulative"
   # AgentOps per-trace metadata — DISABLED for PoC (single agent).
   # Re-enable with set-trace-tags.py when multi-agent requires per-trace
   # pod/node identification. See ADR-020.
