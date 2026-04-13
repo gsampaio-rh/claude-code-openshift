@@ -5,3 +5,9 @@ __pycache__/
 .DS_Store
 .cursor/
 .vscode/
+
+# Internal docs — not for public repo
+docs/plan.md
+docs/PRD.md
+docs/FUTURE_EXPLORATIONS.md
+docs/articles/
