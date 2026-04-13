@@ -122,6 +122,81 @@ A opção 1 (Prometheus exporter direto, `OTEL_METRICS_EXPORTER=prometheus`) **n
 
 ---
 
+## Sprint D — Observability: próximos passos
+
+**Objetivo:** Fechar os gaps que ficaram de fora dos Sprints A e C. Ver também [OBSERVABILITY.md §4](OBSERVABILITY.md).
+
+### D.1 — Métricas de GPU (DCGM)
+
+**O que falta:** Não temos visibilidade de utilização real de GPU (SM occupancy, memory bandwidth, temperatura, power draw). As métricas do vLLM (KV cache, tokens/s) são proxies indiretos.
+
+**Como fazer:**
+- Instalar **DCGM Exporter** nos nodes GPU (DaemonSet ou via GPU Operator, que já inclui DCGM)
+- Criar ServiceMonitor para o DCGM Exporter
+- Adicionar painel "GPU" no dashboard de inferência: `DCGM_FI_DEV_GPU_UTIL`, `DCGM_FI_DEV_FB_USED`, `DCGM_FI_DEV_POWER_USAGE`, `DCGM_FI_DEV_GPU_TEMP`
+- Referência: [NVIDIA GPU Operator — DCGM Exporter](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/gpu-operator-dcgm-exporter.html)
+
+### D.2 — Breakdown por cliente/caller
+
+**O que falta:** Não conseguimos saber *quem* está fazendo requests ao modelo. O vLLM não tagga métricas por caller, e o agent OTel tem `session_id` mas não tem identidade de usuário.
+
+**Como fazer:**
+- **Curto prazo:** Habilitar `OTEL_RESOURCE_ATTRIBUTES="team.id=<team>,cost_center=<cc>"` no ConfigMap de cada agente. Permite segmentar por equipe no Grafana.
+- **Médio prazo:** Com SPIFFE/Kagenti (Sprint 3 do PLAN), cada agente terá identidade criptográfica. Um proxy (Envoy/HAProxy) na frente do vLLM pode injetar headers `X-Agent-ID` e o vLLM pode logar por caller.
+- **Longo prazo:** OAuth no agente (`user.account_uuid`, `user.email` nos atributos OTel) + MaaS (Sprint B) para governança completa.
+
+### D.3 — OTel events/logs do agente
+
+**O que falta:** `OTEL_LOGS_EXPORTER=none` — não estamos capturando os eventos detalhados que o Claude Code emite: prompt events, tool results (nome, sucesso, duração, erro), API requests (modelo, custo, tokens), API errors (status code, retries), tool decisions.
+
+**Como fazer:**
+- Setar `OTEL_LOGS_EXPORTER=otlp` no ConfigMap do agente
+- Configurar pipeline de logs no OTEL Collector: receiver OTLP → exporter para **Loki** ou **Elasticsearch**
+- Grafana Loki como datasource para correlacionar logs com métricas
+- Útil para: debugging de falhas de tool, análise de prompts que causam erros, auditoria de uso
+
+**Pré-requisito:** Deploy de Loki ou outro backend de logs no cluster. OpenShift Logging (Loki Operator) é opção nativa.
+
+### D.4 — OTel traces (beta) do agente
+
+**O que falta:** Distributed tracing que liga cada prompt do usuário às execuções de tools e chamadas de API. O Claude Code propaga `TRACEPARENT` para subprocessos, permitindo trace E2E.
+
+**Como fazer:**
+- Setar `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1` e `OTEL_TRACES_EXPORTER=otlp`
+- Adicionar pipeline de traces no OTEL Collector: receiver OTLP → exporter para **Tempo** ou **Jaeger**
+- Grafana Tempo como datasource para visualizar waterfalls
+- Diferente do MLflow: traces OTel são infraestrutura (latência, spans, erros); MLflow traces são semânticos (tool calls, conversas, tokens)
+
+**Pré-requisito:** Deploy de Tempo ou Jaeger no cluster. OpenShift distributed tracing (Tempo Operator) é opção nativa.
+
+### D.5 — Alerting (PrometheusRule)
+
+**O que falta:** Nenhum alerta configurado. Se o modelo cair, a latência explodir, ou o custo disparar, ninguém é notificado.
+
+**Como fazer:**
+- Criar `PrometheusRule` CRDs no user workload monitoring
+- Alertas sugeridos:
+  - `vLLM_HighLatency`: TTFT p99 > 10s por 5 min
+  - `vLLM_Down`: `up{job="qwen25-14b"} == 0` por 2 min
+  - `vLLM_KVCacheFull`: KV cache usage > 95% por 5 min
+  - `Agent_HighCost`: `rate(claude_code_cost_usage_USD_total[1h]) > threshold`
+  - `Agent_HighTokens`: `rate(claude_code_token_usage_tokens_total[5m]) > threshold`
+  - `OTEL_Collector_Down`: `up{job="otel-collector"} == 0` por 2 min
+- Integrar com AlertManager (Slack, PagerDuty, email)
+
+### D.6 — Runbooks de troubleshooting
+
+**O que falta:** Guias práticos para diagnosticar problemas comuns usando os dashboards.
+
+**Runbooks sugeridos:**
+- **"Serving lento"** — Checar TTFT/ITL no dashboard → KV cache usage → requests waiting → GPU metrics (D.1) → escalar replicas ou modelo menor
+- **"Endpoint não scrapeado"** — Verificar `up` metric → ServiceMonitor labels → NetworkPolicy → Prometheus targets
+- **"GPU saturada"** — DCGM metrics (D.1) → KV cache pressure → batch size → model quantization
+- **"Custo alto do agente"** — Dashboard agent → tokens por sessão → cache hit rate → otimizar prompts / max_output_tokens
+- **"OTEL Collector sem dados"** — Verificar logs do collector → NetworkPolicy agent → observability:4318 → `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` no ConfigMap
+
+---
+
 ## Nota
 
-**Observability (Sprint A)** responde a *como o modelo/serving (vLLM, GPU, endpoint) se comporta e como depuramos gargalos de inferência*. **Sprint C** responde a *como os agentes consomem recursos (tokens, custo, tempo) e quem está usando*. **MaaS (Sprint B)** responde a *como governamos o acesso aos modelos (API, tiers, quotas)*. Telemetria de **experimentos e traces detalhados** do agente permanece via MLflow conforme ADR-019.
+**Observability (Sprint A)** responde a *como o modelo/serving (vLLM, GPU, endpoint) se comporta e como depuramos gargalos de inferência*. **Sprint C** responde a *como os agentes consomem recursos (tokens, custo, tempo) e quem está usando*. **Sprint D** fecha os gaps restantes: GPU, identidade, logs, traces, alertas, runbooks. **MaaS (Sprint B)** responde a *como governamos o acesso aos modelos (API, tiers, quotas)*. Telemetria de **experimentos e traces detalhados** do agente permanece via MLflow conforme ADR-019.
