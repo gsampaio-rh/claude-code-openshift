@@ -193,11 +193,11 @@ fi
 
 if [[ "$SKIP_OBSERVABILITY" == "false" ]]; then
   run_step "Observability deployment (MLflow)" \
-    bash "$PROJECT_ROOT/observability/scripts/01-deploy-observability.sh"
+    bash "$PROJECT_ROOT/scripts/observability/01-deploy-observability.sh"
 
   if [[ "$SKIP_VERIFY" == "false" ]]; then
     run_step "Observability verification" \
-      bash "$PROJECT_ROOT/observability/scripts/99-verify.sh"
+      bash "$PROJECT_ROOT/scripts/observability/99-verify.sh"
   else
     skip_step "Observability verification"
   fi

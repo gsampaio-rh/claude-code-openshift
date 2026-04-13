@@ -158,8 +158,8 @@ after the MLflow hook creates the trace.
 | `agents/claude-code/entrypoint.sh` | Hook registration logic |
 | `agents/claude-code/manifests/standalone-pod.yaml` | Downward API env vars |
 | `agents/claude-code/manifests/configmap.yaml` | `AGENTOPS_*` static metadata |
-| `observability/scripts/01-deploy-observability.sh` | Experiment-level tags |
-| `observability/scripts/99-verify.sh` | Verification (sections 5-6) |
+| `scripts/observability/01-deploy-observability.sh` | Experiment-level tags |
+| `scripts/observability/99-verify.sh` | Verification (sections 5-6) |
 | `scripts/e2e-test.sh` | E2E validation (section 8) |
 
 ## Alternatives Considered

@@ -4,13 +4,14 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-MLFLOW_MANIFESTS_DIR="$(cd "$SCRIPT_DIR/../mlflow" && pwd)"
+OBSERVABILITY_DIR="$PROJECT_ROOT/observability"
+MLFLOW_MANIFESTS_DIR="$OBSERVABILITY_DIR/mlflow"
 
 # Disabled components — manifests kept for future re-enablement.
-# OTEL_MANIFESTS_DIR="$(cd "$SCRIPT_DIR/../otel" && pwd)"
-# PROMETHEUS_MANIFESTS_DIR="$(cd "$SCRIPT_DIR/../prometheus" && pwd)"
-# GRAFANA_MANIFESTS_DIR="$(cd "$SCRIPT_DIR/../grafana" && pwd)"
-# DASHBOARDS_DIR="$(cd "$SCRIPT_DIR/../dashboards" && pwd)"
+# OTEL_MANIFESTS_DIR="$OBSERVABILITY_DIR/otel"
+# PROMETHEUS_MANIFESTS_DIR="$OBSERVABILITY_DIR/prometheus"
+# GRAFANA_MANIFESTS_DIR="$OBSERVABILITY_DIR/grafana"
+# DASHBOARDS_DIR="$OBSERVABILITY_DIR/dashboards"
 
 if [[ -f "$PROJECT_ROOT/.env" ]]; then
   set -a

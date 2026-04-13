@@ -56,9 +56,11 @@ See [docs/PLAN.md](docs/PLAN.md) for the detailed sprint plan.
 │   ├── mlflow/             # MLflow Tracking Server (deployment, service, PVC, route)
 │   ├── grafana/            # Grafana (inference + agent dashboards via Thanos Querier)
 │   ├── dashboards/         # Dashboard JSON (inference-metrics, agent-metrics)
-│   ├── console-dashboards/ # OpenShift console native dashboards (ConfigMap)
-│   └── scripts/            # 01-deploy-observability.sh, 99-verify.sh, config.sh
-├── scripts/                # deploy-all.sh, e2e-test.sh
+│   └── console-dashboards/ # OpenShift console native dashboards (ConfigMap)
+├── scripts/                # All deployment and orchestration scripts
+│   ├── observability/      # 01-deploy-observability.sh, 99-verify.sh, config.sh
+│   ├── deploy-all.sh
+│   └── e2e-test.sh
 ├── docs/                   # Architecture, ADRs, observability docs
 │   └── adrs/               # Architecture Decision Records
 └── .env.example            # Environment template (copy to .env)
@@ -88,8 +90,8 @@ cp .env.example .env
 ./agents/claude-code/scripts/01-deploy-standalone.sh
 
 # Deploy observability (MLflow)
-./observability/scripts/01-deploy-observability.sh
-./observability/scripts/99-verify.sh
+./scripts/observability/01-deploy-observability.sh
+./scripts/observability/99-verify.sh
 ```
 
 ### Verify

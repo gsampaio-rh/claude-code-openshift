@@ -36,7 +36,7 @@ dashboards displayed operational metrics. However, the stack has been
 **What remains:**
 - All manifests are kept in-repo under `observability/{otel,prometheus,grafana}/`
   and can be re-enabled by uncommenting the relevant sections in
-  `observability/scripts/config.sh` and `01-deploy-observability.sh`.
+  `scripts/observability/config.sh` and `01-deploy-observability.sh`.
 - NetworkPolicy rules for OTEL ports (4317/4318) can be restored in
   `infra/cluster/namespaces/network-policies.yaml`.
 
