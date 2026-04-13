@@ -29,6 +29,9 @@ spec:
       runtimeClassName: kata
       nodeSelector:
         node.kubernetes.io/instance-type: m5.metal
+      volumes:
+        - name: claude-sessions
+          emptyDir: {}
       containers:
         - name: claude-code
           # Built via: oc start-build claude-code-agent --from-dir=agents/claude-code -n agent-sandboxes
@@ -54,6 +57,9 @@ spec:
             #   valueFrom:
             #     fieldRef:
             #       fieldPath: spec.nodeName
+          volumeMounts:
+            - name: claude-sessions
+              mountPath: /opt/app-root/src/.claude
           resources:
             requests:
               cpu: "100m"
@@ -80,6 +86,51 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 1
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+        - name: claude-devtools
+          image: ghcr.io/matt1398/claude-devtools:latest
+          ports:
+            - containerPort: 3456
+              name: devtools-ui
+              protocol: TCP
+          env:
+            - name: CLAUDE_ROOT
+              value: /data/.claude
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "3456"
+          volumeMounts:
+            - name: claude-sessions
+              mountPath: /data/.claude
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3456
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3456
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true

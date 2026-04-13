@@ -101,7 +101,7 @@ cp .env.example .env
 ./inference/vllm/scripts/02-validate-model.sh
 
 # Test Claude Code agent
-oc exec deploy/claude-code-standalone -n agent-sandboxes -- claude -p "What is 2+2?"
+oc exec deploy/claude-code-standalone -c claude-code -n agent-sandboxes -- claude -p "What is 2+2?"
 
 # Full end-to-end test
 ./scripts/e2e-test.sh

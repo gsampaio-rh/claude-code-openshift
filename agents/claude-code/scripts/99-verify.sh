@@ -60,7 +60,7 @@ echo ""
 
 echo "2. Claude Code CLI"
 
-CLAUDE_VERSION=$(oc exec -n "$NAMESPACE" "$POD_NAME" -- \
+CLAUDE_VERSION=$(oc exec -n "$NAMESPACE" "$POD_NAME" -c claude-code -- \
   claude --version 2>/dev/null || echo "")
 if [[ -n "$CLAUDE_VERSION" ]]; then
   pass "Claude Code CLI installed ($CLAUDE_VERSION)"
@@ -75,7 +75,7 @@ echo "3. Environment Variables"
 
 for VAR in ANTHROPIC_BASE_URL ANTHROPIC_DEFAULT_SONNET_MODEL ANTHROPIC_AUTH_TOKEN \
            CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC CLAUDE_CODE_MAX_OUTPUT_TOKENS; do
-  VAL=$(oc exec -n "$NAMESPACE" "$POD_NAME" -- printenv "$VAR" 2>/dev/null || echo "")
+  VAL=$(oc exec -n "$NAMESPACE" "$POD_NAME" -c claude-code -- printenv "$VAR" 2>/dev/null || echo "")
   if [[ -n "$VAL" ]]; then
     pass "$VAR = $VAL"
   else
@@ -88,7 +88,7 @@ echo ""
 
 echo "4. Connectivity to vLLM"
 
-MODELS_RESP=$(oc exec -n "$NAMESPACE" "$POD_NAME" -- \
+MODELS_RESP=$(oc exec -n "$NAMESPACE" "$POD_NAME" -c claude-code -- \
   curl -s --max-time 10 "$VLLM_ENDPOINT/v1/models" 2>/dev/null || echo "")
 if echo "$MODELS_RESP" | grep -q '"data"'; then
   pass "Can reach vLLM /v1/models"
@@ -101,7 +101,7 @@ echo ""
 
 echo "5. End-to-End Test"
 
-E2E_RESP=$(oc exec -n "$NAMESPACE" "$POD_NAME" -- \
+E2E_RESP=$(oc exec -n "$NAMESPACE" "$POD_NAME" -c claude-code -- \
   claude -p "What is 3+4? Answer with just the number." 2>/dev/null || echo "")
 if echo "$E2E_RESP" | grep -q "7"; then
   pass "Claude Code e2e: math question answered correctly"
@@ -160,7 +160,7 @@ echo "============================================================"
 echo ""
 echo "Agent standalone is operational ($RUNNING_PODS replica(s))."
 echo ""
-echo "  Interactive:  oc exec -it -n $NAMESPACE $POD_NAME -- claude"
-echo "  Headless:     oc exec -n $NAMESPACE $POD_NAME -- claude -p 'your prompt'"
-echo "  Logged:       oc exec -n $NAMESPACE $POD_NAME -- claude-logged 'your prompt'"
+echo "  Interactive:  oc exec -it -n $NAMESPACE $POD_NAME -c claude-code -- claude"
+echo "  Headless:     oc exec -n $NAMESPACE $POD_NAME -c claude-code -- claude -p 'your prompt'"
+echo "  Logged:       oc exec -n $NAMESPACE $POD_NAME -c claude-code -- claude-logged 'your prompt'"
 echo "  Scale:        oc scale deployment/$DEPLOY_NAME -n $NAMESPACE --replicas=N"

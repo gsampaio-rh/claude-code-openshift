@@ -1,0 +1,18 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: claude-devtools
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/component: devtools
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  to:
+    kind: Service
+    name: claude-devtools
+  port:
+    targetPort: devtools-ui
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

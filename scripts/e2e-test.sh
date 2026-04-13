@@ -111,7 +111,7 @@ if [[ -z "$POD_NAME" ]]; then
 fi
 pass "Using agent pod: $POD_NAME"
 
-CLAUDE_VER=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -- claude --version 2>/dev/null || echo "")
+CLAUDE_VER=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -c claude-code -- claude --version 2>/dev/null || echo "")
 if [[ -n "$CLAUDE_VER" ]]; then pass "Claude Code CLI: v$CLAUDE_VER"; else fail "Claude Code CLI not in PATH"; fi
 echo ""
 
@@ -119,7 +119,7 @@ echo ""
 
 echo "5. Cross-Namespace: Agent → vLLM"
 
-DNS_CHECK=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -- \
+DNS_CHECK=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -c claude-code -- \
   curl -s --max-time 10 "$VLLM_ENDPOINT/v1/models" 2>/dev/null || echo "")
 
 if echo "$DNS_CHECK" | grep -q '"data"'; then
@@ -135,7 +135,7 @@ echo "6. API Functional Tests"
 
 echo "  6a. Anthropic Messages API (/v1/messages)"
 START_MS=$(date +%s%3N 2>/dev/null || date +%s)
-MSG_RESP=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -- \
+MSG_RESP=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -c claude-code -- \
   curl -s --max-time 30 -X POST "$VLLM_ENDPOINT/v1/messages" \
   -H "Content-Type: application/json" \
   -H "x-api-key: not-needed" \
@@ -150,7 +150,7 @@ else
 fi
 
 echo "  6b. OpenAI Chat Completions API (/v1/chat/completions)"
-CHAT_RESP=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -- \
+CHAT_RESP=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -c claude-code -- \
   curl -s --max-time 30 -X POST "$VLLM_ENDPOINT/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d "{\"model\":\"$MODEL_NAME\",\"messages\":[{\"role\":\"user\",\"content\":\"What is 2*3? Answer with just the number.\"}],\"max_tokens\":10}" 2>/dev/null || echo "")
@@ -167,7 +167,7 @@ echo ""
 echo "7. Claude Code E2E (agent → model via CLI)"
 
 echo "  7a. Simple math"
-MATH_RESP=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -- \
+MATH_RESP=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -c claude-code -- \
   claude -p "What is 7+5? Answer with just the number." 2>/dev/null || echo "")
 
 if echo "$MATH_RESP" | grep -q "12"; then
@@ -178,7 +178,7 @@ fi
 
 echo "  7b. Code generation"
 START_MS=$(date +%s%3N 2>/dev/null || date +%s)
-CODE_RESP=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -- \
+CODE_RESP=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -c claude-code -- \
   claude -p "Write a Python function called 'factorial' that computes n!. Only return the code, no explanation." 2>/dev/null || echo "")
 END_MS=$(date +%s%3N 2>/dev/null || date +%s)
 CODE_LATENCY=$(( END_MS - START_MS ))
@@ -190,7 +190,7 @@ else
 fi
 
 echo "  7c. claude-logged wrapper"
-LOG_RESP=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -- \
+LOG_RESP=$(oc exec -n "$NAMESPACE_AGENT" "$POD_NAME" -c claude-code -- \
   claude-logged "What is 1+1? Answer with just the number." 2>/dev/null || echo "")
 
 if echo "$LOG_RESP" | grep -q '"type":"result"'; then
@@ -353,7 +353,8 @@ echo ""
 
 echo "AgentOps E2E validation complete. Stack is operational."
 echo ""
-echo "  Interactive:    oc exec -it -n $NAMESPACE_AGENT $POD_NAME -- claude"
-echo "  Headless:       oc exec -n $NAMESPACE_AGENT $POD_NAME -- claude -p 'prompt'"
-echo "  Logged:         oc exec -n $NAMESPACE_AGENT $POD_NAME -- claude-logged 'prompt'"
-echo "  Container logs: oc logs -f $POD_NAME -n $NAMESPACE_AGENT"
+echo "  Interactive:    oc exec -it -n $NAMESPACE_AGENT $POD_NAME -c claude-code -- claude"
+echo "  Headless:       oc exec -n $NAMESPACE_AGENT $POD_NAME -c claude-code -- claude -p 'prompt'"
+echo "  Logged:         oc exec -n $NAMESPACE_AGENT $POD_NAME -c claude-code -- claude-logged 'prompt'"
+echo "  Container logs: oc logs -f $POD_NAME -c claude-code -n $NAMESPACE_AGENT"
+echo "  DevTools logs:  oc logs -f $POD_NAME -c claude-devtools -n $NAMESPACE_AGENT"
