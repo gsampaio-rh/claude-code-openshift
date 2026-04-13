@@ -472,23 +472,27 @@ sequenceDiagram
 - Token exchange: tokens broad sao trocados por tokens scoped por backend (RFC 8693)
 - Credenciais de MCP servers ficam no Vault/Secrets, nunca no agente
 
-### 3.6 Observability Layer (MLflow)
+### 3.6 Observability Layer
 
-**Responsabilidade:** Capturar traces de todas as acoes do agente.
+**Responsabilidade:** Capturar traces do agente e metricas do modelo de inferencia.
 
 | Componente | Tecnologia | Namespace | ADR |
 |---|---|---|---|
-| Tracking | MLflow Tracking Server v3.10.1 | `observability` | [ADR-019](../adrs/019-observability-otel-mlflow-grafana.md) |
+| Agent tracing | MLflow Tracking Server v3.10.1 | `observability` | [ADR-019](../adrs/019-observability-otel-mlflow-grafana.md) |
+| Model metrics | OpenShift user workload monitoring (Prometheus) + ServiceMonitor | `inference` | — |
+| Dashboards | Grafana OSS 11.5.2 → Thanos Querier | `observability` | — |
 | Storage | SQLite + PVC (PoC); PostgreSQL + S3 (prod) | `observability` | — |
-
-> OTEL Collector, Prometheus, and Grafana are disabled for the PoC. Manifests kept under `observability/{otel,prometheus,grafana}/` for future re-enablement. See ADR-019 status update.
 
 **Data flow:**
 
 ```mermaid
 flowchart LR
     Agent["Claude Code"] -->|"mlflow autolog claude"| MLflow["MLflow (traces + experiments)"]
+    vLLM["vLLM /metrics"] -->|"ServiceMonitor"| Prom["Prometheus (user workload)"]
+    Prom -->|"Thanos Querier"| Grafana["Grafana (inference dashboard)"]
 ```
+
+#### Agent tracing (MLflow)
 
 **Dados capturados (via `mlflow autolog claude`):**
 - Prompts enviados ao modelo
@@ -509,8 +513,31 @@ MLFLOW_TRACKING_URI=http://mlflow-tracking.observability.svc.cluster.local:5000
 MLFLOW_EXPERIMENT_NAME=claude-code-agents
 ```
 
+#### Model metrics (vLLM → Prometheus → Grafana)
+
+O vLLM expoe 97 metricas Prometheus nativas no endpoint `/metrics` (porta 8080). Um ServiceMonitor no namespace `inference` configura o scrape pelo Prometheus do cluster (user workload monitoring). Grafana no namespace `observability` consulta o Thanos Querier com bearer token de um ServiceAccount com `cluster-monitoring-view`.
+
+**Metricas-chave do dashboard:**
+
+| Categoria | Metricas |
+|---|---|
+| Usage | `model_name`, prompt/generation/total tokens, avg tokens/request, requests by finish reason |
+| Latency | TTFT, ITL, E2E (p50/p95/p99), queue wait, prefill, decode |
+| Cache | KV cache usage %, prefix cache hit rate |
+| Throughput | Prompt tokens/s, generation tokens/s, request rate |
+| Engine | Requests running/waiting, preemptions, engine sleep state |
+| Process | RSS/virtual memory, CPU cores used, iteration tokens |
+
+**NetworkPolicy requerida:**
+
+| Source | Destination | Porta | Motivo |
+|---|---|---|---|
+| `openshift-user-workload-monitoring` | `inference` | 8080 | Prometheus scrape |
+| `observability` | `openshift-monitoring` | 9091 | Grafana → Thanos Querier |
+
 **Routes (external access):**
 - MLflow UI: `https://mlflow-tracking-observability.apps.<cluster>/`
+- Grafana: `https://grafana-observability.apps.<cluster>/`
 
 ### 3.7 CI/CD Layer (Tekton + Garak)
 

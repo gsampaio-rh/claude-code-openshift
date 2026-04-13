@@ -21,6 +21,7 @@ spec:
         app.kubernetes.io/component: telemetry
         app.kubernetes.io/part-of: agentops-platform
     spec:
+      serviceAccountName: grafana
       containers:
         - name: grafana
           image: grafana/grafana:11.5.2

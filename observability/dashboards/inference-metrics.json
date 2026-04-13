@@ -1,0 +1,443 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 200,
+      "title": "Model & Usage",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "text" },
+          "mappings": [{ "type": "value", "options": { "1": { "text": "", "index": 0 } } }]
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "id": 50,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "name", "colorMode": "none" },
+      "title": "Served Model",
+      "type": "stat",
+      "targets": [
+        { "expr": "vllm:num_requests_running{job=\"qwen25-14b\"}", "legendFormat": "{{model_name}}" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "green" } } },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "id": 51,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Total Prompt Tokens",
+      "type": "stat",
+      "targets": [
+        { "expr": "vllm:prompt_tokens_total{job=\"qwen25-14b\"}", "legendFormat": "" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "yellow" } } },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "id": 52,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Total Generation Tokens",
+      "type": "stat",
+      "targets": [
+        { "expr": "vllm:generation_tokens_total{job=\"qwen25-14b\"}", "legendFormat": "" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" } } },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "id": 53,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Total Tokens (All)",
+      "type": "stat",
+      "targets": [
+        { "expr": "vllm:prompt_tokens_total{job=\"qwen25-14b\"} + vllm:generation_tokens_total{job=\"qwen25-14b\"}", "legendFormat": "" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" } } },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "id": 54,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Avg Tokens / Request",
+      "type": "stat",
+      "targets": [
+        { "expr": "(vllm:prompt_tokens_total{job=\"qwen25-14b\"} + vllm:generation_tokens_total{job=\"qwen25-14b\"}) / scalar(sum(vllm:request_success_total{job=\"qwen25-14b\"}))", "legendFormat": "" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "orange" } } },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "id": 55,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Total Requests",
+      "type": "stat",
+      "targets": [
+        { "expr": "sum(vllm:request_success_total{job=\"qwen25-14b\"})", "legendFormat": "" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 15, "stacking": { "mode": "normal" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "stop" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "length" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "abort" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "error" }, "properties": [{ "id": "color", "value": { "fixedColor": "dark-red", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 5 },
+      "id": 56,
+      "title": "Requests by Finish Reason",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "increase(vllm:request_success_total{job=\"qwen25-14b\"}[5m])", "legendFormat": "{{finished_reason}}" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 15, "stacking": { "mode": "normal" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "local_compute" }, "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "local_cache_hit" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 5 },
+      "id": 57,
+      "title": "Prompt Tokens by Source",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "rate(vllm:prompt_tokens_by_source_total{job=\"qwen25-14b\"}[5m])", "legendFormat": "{{source}}" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 5 },
+      "id": 58,
+      "title": "Token Throughput (tokens/s)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "rate(vllm:prompt_tokens_total{job=\"qwen25-14b\"}[5m])", "legendFormat": "Prompt tokens/s" },
+        { "expr": "rate(vllm:generation_tokens_total{job=\"qwen25-14b\"}[5m])", "legendFormat": "Generation tokens/s" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "id": 100,
+      "title": "Request Overview",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 14 },
+      "id": 1,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Requests Running",
+      "type": "stat",
+      "targets": [
+        { "expr": "vllm:num_requests_running{job=\"qwen25-14b\"}", "legendFormat": "" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 14 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Requests Waiting",
+      "type": "stat",
+      "targets": [
+        { "expr": "vllm:num_requests_waiting{job=\"qwen25-14b\"}", "legendFormat": "" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "red", "value": 0.8 }
+            ]
+          },
+          "unit": "percentunit",
+          "max": 1
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 14 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "KV Cache Usage",
+      "type": "gauge",
+      "targets": [
+        { "expr": "vllm:kv_cache_usage_perc{job=\"qwen25-14b\"}", "legendFormat": "" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 14 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Request Rate",
+      "type": "stat",
+      "targets": [
+        { "expr": "sum(rate(vllm:request_success_total{job=\"qwen25-14b\"}[5m]))", "legendFormat": "" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": {} },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 14 },
+      "id": 6,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Preemptions",
+      "type": "stat",
+      "targets": [
+        { "expr": "vllm:num_preemptions_total{job=\"qwen25-14b\"}", "legendFormat": "" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 14 },
+      "id": 32,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Engine State",
+      "type": "stat",
+      "targets": [
+        { "expr": "vllm:engine_sleep_state{job=\"qwen25-14b\",sleep_state=\"awake\"}", "legendFormat": "awake" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "id": 101,
+      "title": "Latency",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 19 },
+      "id": 10,
+      "title": "Time to First Token (TTFT)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(vllm:time_to_first_token_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, rate(vllm:time_to_first_token_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, rate(vllm:time_to_first_token_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 19 },
+      "id": 11,
+      "title": "Inter-Token Latency (ITL)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(vllm:inter_token_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, rate(vllm:inter_token_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, rate(vllm:inter_token_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 19 },
+      "id": 12,
+      "title": "End-to-End Request Latency",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(vllm:e2e_request_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, rate(vllm:e2e_request_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, rate(vllm:e2e_request_latency_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 27 },
+      "id": 13,
+      "title": "Queue Wait Time",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(vllm:request_queue_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, rate(vllm:request_queue_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, rate(vllm:request_queue_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 27 },
+      "id": 14,
+      "title": "Prefill Time",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(vllm:request_prefill_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, rate(vllm:request_prefill_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p95" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 27 },
+      "id": 15,
+      "title": "Decode Time",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(vllm:request_decode_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, rate(vllm:request_decode_time_seconds_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p95" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+      "id": 103,
+      "title": "Cache & Engine",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "custom": { "drawStyle": "line", "fillOpacity": 20 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 36 },
+      "id": 30,
+      "title": "KV Cache Usage Over Time",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "vllm:kv_cache_usage_perc{job=\"qwen25-14b\"}", "legendFormat": "KV Cache %" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 36 },
+      "id": 31,
+      "title": "Prefix Cache Hit Rate",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "rate(vllm:prefix_cache_hits_total{job=\"qwen25-14b\"}[5m]) / (rate(vllm:prefix_cache_queries_total{job=\"qwen25-14b\"}[5m]) > 0)", "legendFormat": "Hit Rate" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 36 },
+      "id": 33,
+      "title": "Requests Running vs Waiting",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "vllm:num_requests_running{job=\"qwen25-14b\"}", "legendFormat": "Running" },
+        { "expr": "vllm:num_requests_waiting{job=\"qwen25-14b\"}", "legendFormat": "Waiting" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
+      "id": 104,
+      "title": "Process & System",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 45 },
+      "id": 40,
+      "title": "Process Memory",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "process_resident_memory_bytes{job=\"qwen25-14b\"}", "legendFormat": "RSS" },
+        { "expr": "process_virtual_memory_bytes{job=\"qwen25-14b\"}", "legendFormat": "Virtual" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 45 },
+      "id": 41,
+      "title": "Process CPU Time",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "rate(process_cpu_seconds_total{job=\"qwen25-14b\"}[5m])", "legendFormat": "CPU cores used" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 30 } } },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 45 },
+      "id": 42,
+      "title": "Iteration Tokens",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(vllm:iteration_tokens_total_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, rate(vllm:iteration_tokens_total_bucket{job=\"qwen25-14b\"}[5m]))", "legendFormat": "p95" }
+      ]
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "tags": ["vllm", "inference", "agentops"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "OpenShift Prometheus", "value": "OpenShift Prometheus" },
+        "hide": 0,
+        "includeAll": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AgentOps — Inference Metrics (vLLM)",
+  "uid": "agentops-inference-metrics"
+}

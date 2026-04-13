@@ -1,8 +1,8 @@
 # ADR-019: Observability Stack — MLflow + OTEL Collector + Grafana
 
-**Status:** Superseded (simplified)
+**Status:** Superseded (simplified) — Grafana re-enabled for inference metrics
 **Date:** 2026-04-09
-**Updated:** 2026-04-10
+**Updated:** 2026-04-13
 **Deciders:** Platform Engineering
 
 ## Status Update (2026-04-10)
@@ -40,12 +40,43 @@ dashboards displayed operational metrics. However, the stack has been
 - NetworkPolicy rules for OTEL ports (4317/4318) can be restored in
   `infra/cluster/namespaces/network-policies.yaml`.
 
-**Current data flow:**
+**Current data flow (updated 2026-04-13):**
 
 ```
 Claude Code Agent
   └─ mlflow autolog claude ──▸ MLflow Tracking Server (traces + experiments)
+
+vLLM /metrics ──▸ ServiceMonitor ──▸ Prometheus (user workload) ──▸ Thanos Querier ──▸ Grafana
 ```
+
+### Grafana re-enabled for inference metrics (2026-04-13)
+
+Grafana was **re-enabled** — not for agent traces (those stay in MLflow) but for
+**vLLM inference metrics**. The approach changed from the original design:
+
+- **Original:** OTEL Collector spanmetrics → standalone Prometheus → Grafana
+- **Current:** vLLM native Prometheus metrics → OpenShift user workload monitoring → Thanos Querier → Grafana
+
+Key differences from the original design:
+
+1. **No standalone Prometheus** — uses OpenShift's built-in user workload monitoring
+   (`enableUserWorkload: true` in `cluster-monitoring-config`).
+2. **No OTEL Collector** — vLLM exposes 97 native Prometheus metrics on `/metrics`;
+   no need to derive metrics from traces.
+3. **Grafana datasource** — points to Thanos Querier (`openshift-monitoring:9091`)
+   with a ServiceAccount bearer token (`cluster-monitoring-view` ClusterRole),
+   not a standalone Prometheus instance.
+4. **Dashboard focus** — inference metrics (TTFT, ITL, KV cache, token throughput,
+   requests by finish reason), not agent span metrics.
+
+**New manifests:**
+- `infra/vllm/manifests/servicemonitor.yaml` — ServiceMonitor for vLLM scrape
+- `observability/grafana/rbac.yaml` — ServiceAccount + ClusterRoleBinding
+- `observability/dashboards/inference-metrics.json` — vLLM inference dashboard
+
+**NetworkPolicy additions:**
+- `openshift-user-workload-monitoring` → `inference:8080` (Prometheus scrape)
+- `observability` → `openshift-monitoring:9091` (Grafana → Thanos Querier)
 
 > Trace metadata enrichment (Downward API, `set-trace-tags.py` Stop hook) is
 > documented in [ADR-020](020-trace-metadata-enrichment.md).
@@ -69,7 +100,7 @@ Deploy a three-component stack in the `observability` namespace:
 |---|---|---|---|
 | **MLflow Tracking Server** | `mlflow:v3.10.1` | Trace storage, experiment tracking UI, artifact store | **Active** |
 | **OTEL Collector** (contrib) | `otel-collector-contrib:0.120.0` | Receives OTLP spans, converts to RED metrics via `spanmetrics` connector | Disabled |
-| **Grafana OSS** | `grafana:11.5.2` | Operational dashboards querying Prometheus | Disabled |
+| **Grafana OSS** | `grafana:11.5.2` | Inference dashboards querying Thanos Querier (user workload metrics) | **Active** (inference only) |
 
 ### Data flow (original design)
 

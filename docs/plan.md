@@ -263,6 +263,15 @@ Este eh o checkpoint mais importante do PoC. Se Claude Code + Qwen 2.5 14B nao p
 - [x] Remover `otlphttp/mlflow` do OTEL Collector — redundante com integracao nativa. OTEL fica apenas para Grafana metrics via spanmetrics.
 - [x] Desabilitar OTEL Collector, Prometheus e Grafana — MLflow autolog eh a unica observabilidade necessaria pro PoC. Manifests mantidos em `observability/{otel,prometheus,grafana}/` para re-ativacao futura. Scripts e docs atualizados para MLflow-only.
 - [x] Enriquecer metadata dos traces — implementado e validado E2E, depois **desabilitado** (complexidade desproporcional para single-agent). Experiment-level tags permanecem ativos. Per-trace hook (`set-trace-tags.py`) mantido no repo para re-ativacao em multi-agent. Ver ADR-020.
+- [x] **Observabilidade de inferencia (vLLM)** — Sprint A de [FUTURE_EXPLORATIONS.md](FUTURE_EXPLORATIONS.md):
+  - [x] Habilitar user workload monitoring (`enableUserWorkload: true` em `cluster-monitoring-config`)
+  - [x] Criar ServiceMonitor pra vLLM (`infra/vllm/manifests/servicemonitor.yaml`) — scrape 97 metricas nativas a cada 15s
+  - [x] Re-habilitar Grafana com datasource Thanos Querier (nao Prometheus standalone)
+  - [x] Criar ServiceAccount `grafana` com `cluster-monitoring-view` RBAC (`observability/grafana/rbac.yaml`)
+  - [x] Dashboard "AgentOps — Inference Metrics (vLLM)" com 5 secoes: Model & Usage, Request Overview, Latency, Cache & Engine, Process & System
+  - [x] Atualizar NetworkPolicy: `openshift-user-workload-monitoring` → `inference:8080` (scrape) e `observability` → `openshift-monitoring:9091` (Grafana → Thanos)
+  - [x] Validar dashboard sob carga de teste (25 requests)
+  - [x] Atualizar ADR-019, ARCHITECTURE.md, FUTURE_EXPLORATIONS.md
 
 **Problemas encontrados e resolvidos:**
 - OTEL Collector crashloop: `health_check` extension nao estava configurada, readiness probe em `:13133` falhava. Corrigido adicionando `extensions.health_check`.
@@ -297,14 +306,15 @@ observability/
 │   ├── pvc.yaml
 │   ├── service.yaml
 │   └── route.yaml
-├── grafana/                         # (disabled) Grafana OSS — kept for future re-enablement
+├── grafana/                         # (active) Grafana OSS — inference metrics via Thanos Querier
 │   ├── deployment.yaml
 │   ├── service.yaml
 │   ├── route.yaml
-│   ├── configmap-datasources.yaml
+│   ├── rbac.yaml                    # ServiceAccount + ClusterRoleBinding (cluster-monitoring-view)
+│   ├── configmap-datasources.yaml   # Thanos Querier datasource with bearer token
 │   └── configmap-dashboards.yaml
-├── dashboards/                      # (disabled) Grafana dashboard JSON
-│   └── agent-metrics.json
+├── dashboards/                      # (active) Grafana dashboard JSON
+│   └── inference-metrics.json       # vLLM inference dashboard (Model & Usage, Latency, Cache, etc.)
 └── scripts/
     ├── config.sh                    # Env vars (namespace, paths, timeouts)
     ├── 01-deploy-observability.sh   # Deploy MLflow only
@@ -749,9 +759,9 @@ claude-code-openshift/
 │   ├── otel/                        # OTEL Collector (disabled — kept for future use)
 │   ├── mlflow/                      # MLflow Tracking Server v3.10.1 (active)
 │   ├── prometheus/                  # Prometheus (disabled — kept for future use)
-│   ├── grafana/                     # Grafana (disabled — kept for future use)
-│   ├── dashboards/                  # Grafana dashboard JSON (disabled)
-│   └── scripts/                     # Deploy + verify scripts (MLflow-only)
+│   ├── grafana/                     # Grafana (active — inference metrics via Thanos Querier)
+│   ├── dashboards/                  # Grafana dashboard JSON (inference-metrics.json)
+│   └── scripts/                     # Deploy + verify scripts
 ├── orchestration/
 │   ├── manifests/                   # Orchestrator deployment + config
 │   ├── scripts/                     # Deploy, verify

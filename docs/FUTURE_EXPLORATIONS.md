@@ -1,31 +1,42 @@
 # Future explorations — backlog de sprints
 
-**Status:** Backlog  
-**Data:** 2026-04-10  
+**Status:** Backlog
+**Data:** 2026-04-10
+**Atualizado:** 2026-04-13
 **Relacionado:** [PLAN.md](PLAN.md) | [ADR-019 — Observability](adrs/019-observability-otel-mlflow-grafana.md)
 
-Dois temas que ficam **fora do núcleo imediato do PoC**, mas merecem tempo dedicado: **observabilidade do modelo em execução** (vLLM / serving / GPU) e **Models-as-a-Service** (governança de acesso ao LLM no OpenShift AI). Cada bloco abaixo pode virar uma sprint de exploração quando houver capacidade.
+Temas que ficam **fora do núcleo imediato do PoC**, mas merecem tempo dedicado. Cada bloco abaixo pode virar uma sprint de exploração quando houver capacidade.
 
 ---
 
-## Sprint A — Observability do modelo (vLLM / inferência)
+## Sprint A — Observability do modelo (vLLM / inferência) ✅ Concluído
 
-**Objetivo:** Medir e visualizar o **runtime de inferência** — filas, latência, throughput de tokens, utilização de GPU, saúde do endpoint — **não** a telemetria do agente (Claude Code) nem experimentos no MLflow. Isso é outra linha de trabalho; ver [ADR-019](adrs/019-observability-otel-mlflow-grafana.md) apenas se cruzar com stack compartilhada (Grafana/Prometheus).
+**Objetivo:** Medir e visualizar o **runtime de inferência** — filas, latência, throughput de tokens, saúde do endpoint.
 
-**Contexto:** O vLLM expõe métricas Prometheus no processo de serving. No OpenShift, o padrão é **user workload monitoring**: `PodMonitor` / `ServiceMonitor` para o Prometheus do cluster scrapear o endpoint de métricas do deployment de inferência; opcionalmente **DCGM** (ou equivalente) para métricas de GPU; dashboards tipo **vLLM** e cluster/GPU. Referência de arquitetura alinhada à prática Red Hat: [redhat-et/ai-observability — rhoai](https://github.com/redhat-et/ai-observability/tree/main/rhoai).
+**Implementado (2026-04-13):**
 
-**Escopo sugerido:**
+- **User workload monitoring** habilitado no cluster (`enableUserWorkload: true`)
+- **ServiceMonitor** para o vLLM — scrape de 97 métricas nativas a cada 15s (`infra/vllm/manifests/servicemonitor.yaml`)
+- **Grafana** re-habilitado com datasource Thanos Querier (ServiceAccount `grafana` com `cluster-monitoring-view`)
+- **Dashboard "AgentOps — Inference Metrics (vLLM)"** (`observability/dashboards/inference-metrics.json`):
+  - **Model & Usage** — modelo servido, prompt/generation/total tokens, avg tokens/request, requests por finish reason, tokens por source (compute vs cache hit), throughput
+  - **Request Overview** — running, waiting, KV cache, request rate, preemptions, engine state
+  - **Latency** — TTFT, ITL, E2E (p50/p95/p99), queue wait, prefill, decode
+  - **Cache & Engine** — KV cache over time, prefix cache hit rate, running vs waiting
+  - **Process & System** — memory (RSS/virtual), CPU, iteration tokens
+- **NetworkPolicy** atualizada para permitir Prometheus scrape e Grafana → Thanos
 
-- Garantir **scrape** das métricas do vLLM (namespace de inferência, labels corretos, rota interna ao metrics port).
-- Opcional: **OpenTelemetry** só na medida em que fizer sentido para **traces/métricas do caminho de inferência** ou export unificado — não como substituto das métricas nativas do vLLM.
-- **Dashboards** focados em serving (ex.: fila de requisições, tokens/s, latência por etapa, erros HTTP, pressão de KV cache quando exposto) e, se aplicável, painéis de **GPU**.
-- **Runbooks** curtos: “serving lento” vs. “GPU saturada” vs. “endpoint não scrapeado”.
+**Critérios de saída:**
 
-**Critérios de saída (exemplo):**
+- [x] Métricas do vLLM visíveis no Prometheus (user workload monitoring) e Grafana
+- [x] Dashboard de inferência validado sob carga de teste (25 requests)
+- [x] Manifests no repo para reproduzir
 
-- [ ] Métricas do vLLM visíveis no backend de séries (Console Observe / Grafana / Prometheus) no ambiente de referência.
-- [ ] Pelo menos um dashboard de **inferência** (não de agente) validado sob carga de teste.
-- [ ] Manifests ou notas no repo (ex. `observability/` ou `infra/`) para reproduzir o scrape e o dashboard.
+**Não implementado (futuro):**
+
+- Métricas de GPU via DCGM (requer DCGM exporter)
+- Breakdown por cliente/caller (requer proxy com identity labels — planejado com SPIFFE/Kagenti)
+- Runbooks de troubleshooting
 
 ---
 
@@ -33,7 +44,7 @@ Dois temas que ficam **fora do núcleo imediato do PoC**, mas merecem tempo dedi
 
 **Objetivo:** Explorar **MaaS** como camada de governança de LLM (tiers, quotas, API keys, roteamento) **separada** da observabilidade de inferência (Sprint A), usando a UI e o fluxo descritos na documentação Red Hat.
 
-**Referência principal (interface do dashboard):**  
+**Referência principal (interface do dashboard):**
 [Govern LLM access with Models-as-a-Service — Understanding the MaaS dashboard interface](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/govern_llm_access_with_models-as-a-service/index#understanding-the-maas-dashboard-interface_maas-user)
 
 **O que a doc descreve (resumo para a sprint):**

@@ -1,3 +1,10 @@
+# Applied dynamically by deploy script (token injected at deploy time).
+# The ServiceAccount 'grafana' (rbac.yaml) has 'cluster-monitoring-view' ClusterRole,
+# and its token is used as Bearer auth to Thanos Querier.
+#
+# To regenerate:
+#   TOKEN=$(oc create token grafana -n observability --duration=87600h)
+#   Then apply this ConfigMap with the token interpolated into secureJsonData.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -11,11 +18,15 @@ data:
   datasources.yaml: |
     apiVersion: 1
     datasources:
-      - name: Prometheus
+      - name: OpenShift Prometheus
         type: prometheus
         access: proxy
-        url: http://prometheus.observability.svc.cluster.local:9090
+        url: https://thanos-querier.openshift-monitoring.svc.cluster.local:9091
         isDefault: true
         editable: false
         jsonData:
           timeInterval: 15s
+          tlsSkipVerify: true
+          httpHeaderName1: Authorization
+        secureJsonData:
+          httpHeaderValue1: "Bearer REPLACE_WITH_TOKEN"
