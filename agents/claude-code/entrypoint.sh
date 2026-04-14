@@ -6,6 +6,13 @@ LOG_FILE="$LOG_DIR/claude.jsonl"
 mkdir -p "$LOG_DIR"
 touch "$LOG_FILE"
 
+# ── Observability hooks setup ────────────────────────────────
+HOOKS_SETTINGS="/opt/app-root/hooks/settings.json"
+if [[ -f "$HOOKS_SETTINGS" ]]; then
+  mkdir -p "$HOME/.claude"
+  cp "$HOOKS_SETTINGS" "$HOME/.claude/settings.json"
+fi
+
 # ── MLflow tracing setup ─────────────────────────────────────
 MLFLOW_TRACING="disabled"
 if [[ -n "${MLFLOW_TRACKING_URI:-}" ]] && command -v mlflow &>/dev/null; then
@@ -32,6 +39,7 @@ echo "  Base URL:   ${ANTHROPIC_BASE_URL:-not set}"
 echo "  Model:      ${ANTHROPIC_DEFAULT_SONNET_MODEL:-not set}"
 echo "  Max Output: ${CLAUDE_CODE_MAX_OUTPUT_TOKENS:-default}"
 echo "  MLflow:     $MLFLOW_TRACING"
+echo "  Hooks:      $(test -f "$HOME/.claude/settings.json" && echo 'enabled → agents-observe' || echo 'disabled')"
 echo "  Log Dir:    $LOG_DIR"
 echo "  Started:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo ""

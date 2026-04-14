@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PreToolUse": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
+    "PostToolUse": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
+    "PostToolUseFailure": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
+    "PermissionRequest": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
+    "Notification": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "mlflow autolog claude stop-hook" },
+          { "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }
+        ]
+      }
+    ],
+    "SubagentStart": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
+    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
+    "PreCompact": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
+    "SessionEnd": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }]
+  },
+  "env": {
+    "MLFLOW_CLAUDE_TRACING_ENABLED": "true",
+    "MLFLOW_TRACKING_URI": "http://mlflow-tracking.observability.svc.cluster.local:5000",
+    "MLFLOW_EXPERIMENT_NAME": "claude-code-agents"
+  }
+}

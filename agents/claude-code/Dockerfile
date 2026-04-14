@@ -11,12 +11,12 @@ ENV PATH="/opt/app-root/src/.local/bin:$PATH"
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY claude-logged /usr/local/bin/claude-logged
-# set-trace-tags.py is kept in-repo but not copied — disabled for PoC (ADR-020)
+COPY hooks/ /opt/app-root/hooks/
 
 WORKDIR /opt/app-root/src
 
 USER 0
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/claude-logged && \
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/claude-logged /opt/app-root/hooks/*.sh && \
     chmod -R g+w /opt/app-root/src/.claude || true
 USER 1001
 
