@@ -94,7 +94,7 @@ spec:
             capabilities:
               drop: ["ALL"]
         - name: claude-devtools
-          image: ghcr.io/matt1398/claude-devtools:latest
+          image: image-registry.openshift-image-registry.svc:5000/agent-sandboxes/claude-devtools:latest
           ports:
             - containerPort: 3456
               name: devtools-ui
