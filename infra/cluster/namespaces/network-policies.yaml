@@ -72,6 +72,14 @@ spec:
           protocol: TCP
         - port: 4318
           protocol: TCP
+    # Intra-namespace: agents-observe (decoupled from sidecar)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: agents-observe
+      ports:
+        - port: 4981
+          protocol: TCP
     # External registries (GitHub, npm) — controlled egress
     - to:
         - ipBlock:
@@ -198,7 +206,13 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: agentops
-    # UI access from OpenShift ingress controller (Routes — e.g. claude-devtools)
+    # Intra-namespace: agent pods → agents-observe
+    - from:
+        - podSelector: {}
+      ports:
+        - port: 4981
+          protocol: TCP
+    # UI access from OpenShift ingress controller (Routes — e.g. claude-devtools, agents-observe)
     - from:
         - namespaceSelector:
             matchLabels:

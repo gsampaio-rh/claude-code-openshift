@@ -2,13 +2,13 @@
 # Hook script — reads event JSON from stdin, wraps in envelope, POSTs to agents-observe server.
 # Uses a temp file to safely pass arbitrary JSON to node without escaping issues.
 
-SERVER_URL="${AGENTS_OBSERVE_API_BASE_URL:-http://localhost:4981/api}/events"
+SERVER_URL="${AGENTS_OBSERVE_API_BASE_URL:-http://agents-observe.agent-sandboxes.svc:4981/api}/events"
 PROJECT_SLUG="${AGENTS_OBSERVE_PROJECT_SLUG:-claude-openshift}"
 
 tmpfile=$(mktemp)
 cat > "$tmpfile"
 
-(node -e '
+node -e '
 const fs = require("fs");
 const http = require("http");
 const raw = fs.readFileSync(process.argv[1], "utf8");
@@ -27,10 +27,8 @@ const req = http.request({
   method: "POST",
   headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(data) },
   timeout: 3000,
-}, () => {});
-req.on("error", () => {});
+}, () => { process.exit(0); });
+req.on("error", () => { process.exit(0); });
 req.write(data);
 req.end();
-' "$tmpfile" "$PROJECT_SLUG" "$SERVER_URL" > /dev/null 2>&1) &
-
-exit 0
+' "$tmpfile" "$PROJECT_SLUG" "$SERVER_URL" > /dev/null 2>&1
