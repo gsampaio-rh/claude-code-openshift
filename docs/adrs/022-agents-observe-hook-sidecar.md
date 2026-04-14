@@ -1,6 +1,6 @@
 # ADR-022: agents-observe Sidecar for Hook-Based Event Monitoring
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-024](024-decouple-agents-observe-from-sidecar.md)
 **Date:** 2026-04-14
 **Deciders:** Platform Engineering
 
