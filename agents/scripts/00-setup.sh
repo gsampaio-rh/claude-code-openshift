@@ -21,7 +21,7 @@ if oc get namespace "$NAMESPACE" &>/dev/null; then
   echo "  Namespace exists."
 else
   echo "  ERROR: Namespace '$NAMESPACE' not found."
-  echo "  Run cluster setup first: cd ../../../infra/cluster/scripts && ./01-setup-cluster.sh"
+  echo "  Run cluster setup first: cd ../../infra/cluster/scripts && ./01-setup-cluster.sh"
   exit 1
 fi
 echo ""
@@ -42,7 +42,7 @@ if oc get deployment "$MODEL_NAME" -n "$NAMESPACE_INFERENCE" &>/dev/null; then
   fi
 else
   echo "  WARNING: Deployment '$MODEL_NAME' not found in '$NAMESPACE_INFERENCE'."
-  echo "  Deploy vLLM first: cd ../../../inference/vllm/scripts && ./01-deploy-model.sh"
+  echo "  Deploy vLLM first: cd ../../inference/vllm/scripts && ./01-deploy-model.sh"
 fi
 echo ""
 

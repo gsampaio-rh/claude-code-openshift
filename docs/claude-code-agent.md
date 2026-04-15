@@ -227,22 +227,22 @@ agents/
 │   ├── manifests/
 │   │   ├── standalone-pod.yaml # Deployment: claude-code + claude-devtools containers
 │   │   └── configmap.yaml      # Environment config (inference, MLflow, OTel, model)
-│   └── scripts/
-│       ├── config.sh           # Shared config variables
-│       ├── 00-setup.sh         # Namespace, RBAC, image streams
-│       ├── 01-deploy-standalone.sh # Apply manifests and verify
-│       ├── build-image.sh      # Trigger BuildConfig
-│       ├── 99-verify.sh        # Health checks
-│       └── 99-cleanup.sh       # Teardown
 ├── claude-devtools/
 │   └── manifests/
 │       ├── build.yaml          # BuildConfig + ImageStream
 │       ├── service.yaml        # Service (selector: claude-code pod)
 │       └── route.yaml          # Route (edge TLS)
-└── agents-observe/
-    └── manifests/
-        ├── build.yaml          # BuildConfig + ImageStream
-        └── deployment.yaml     # Deployment + Service + Route
+├── agents-observe/
+│   └── manifests/
+│       ├── build.yaml          # BuildConfig + ImageStream
+│       └── deployment.yaml     # Deployment + Service + Route
+└── scripts/
+    ├── config.sh               # Shared config variables
+    ├── 00-setup.sh             # Namespace, RBAC, image streams
+    ├── 01-deploy-standalone.sh # Apply manifests and verify
+    ├── build-image.sh          # Trigger BuildConfig
+    ├── 99-verify.sh            # Health checks
+    └── 99-cleanup.sh           # Teardown
 ```
 
 ---
