@@ -54,8 +54,43 @@ For completed work, see [CHANGELOG.md](CHANGELOG.md).
   - [Aperant](https://github.com/AndyMik90/Aperant) — Electron, up to 12 agents in parallel git worktrees
   - [claude_code_agent_farm](https://github.com/Dicklesworthstone/claude_code_agent_farm) — 20+ parallel agents with lock coordination
   - [claude-code-workflow-orchestration](https://github.com/barkain/claude-code-workflow-orchestration) — Multi-step plugin with specialized delegation
-  - [gastown](https://github.com/steveyegge/gastown) — Multi-agent workspace manager
+  - [gastown](https://github.com/gastownhall/gastown) — Multi-agent workspace manager
   - [harness](https://github.com/revfactory/harness) — Meta-skill that generates domain-specific agent teams
+
+### Multi-agent task management exploration
+
+> **Problem:** Running multiple agents is one thing. Deciding *what* each agent works on, tracking progress, and ensuring specs are followed before code starts — that's the missing layer. Evaluate community approaches to agent task management and spec-driven development.
+
+**Category A — Task management and orchestration:**
+
+- [ ] Evaluate [agi-le](https://github.com/gsampaio-rh/agi-le) (Python, file-based, agent-agnostic)
+  - Spec-driven project management: epics → stories → tasks, file-based state (`.agile/`), hexagonal architecture
+  - Agent Skill integration (SKILL.md standard), scheduler, conflict detection, handoff
+  - Our own project — test with Claude Code on a real feature
+- [ ] Evaluate [vibe-kanban](https://github.com/BloopAI/vibe-kanban) (Rust + TypeScript, 25.1k stars, Apache-2.0)
+  - Kanban board for coding agents: plan with issues, run agents in workspaces, review diffs inline
+  - Supports 10+ agents (Claude Code, Codex, Gemini CLI, Copilot, Amp, Cursor, etc.)
+  - Self-hostable (Docker, Caddy), MCP server built-in, git worktree per workspace
+- [ ] Evaluate [gastown](https://github.com/gastownhall/gastown) (Go, 14.1k stars, MIT)
+  - Multi-agent workspace manager: Mayor (AI coordinator), Polecats (workers), Convoys (work tracking)
+  - Git worktree persistence, merge queue (Refinery), three-tier health monitoring, OTEL telemetry
+  - Scheduler with capacity limits, federated work coordination (Wasteland)
+
+**Category B — Spec-driven development:**
+
+- [ ] Evaluate [OpenSpec](https://github.com/Fission-AI/OpenSpec) (TypeScript, 40.2k stars, MIT)
+  - Spec framework: propose → specs → design → tasks, artifact-guided workflow
+  - Supports 25+ AI tools via slash commands, iterative not waterfall
+- [ ] Evaluate [spec-kit](https://github.com/github/spec-kit) (Python, GitHub official)
+  - Spec-driven development toolkit: constitution → specify → plan → tasks → build
+  - Phase-gated lifecycle, Python CLI (`specify`), extensible via presets and extensions
+
+**Evaluation criteria:**
+
+- [ ] Test each tool with Claude Code + vLLM on a real feature (e.g., add PVC persistence to agents-observe)
+- [ ] Compare: how well does each tool structure work for an AI agent vs a human?
+- [ ] Assess OpenShift compatibility (containerizable? rootless? file-based state vs DB?)
+- [ ] Document findings and recommendation in ADR
 
 ### Model upgrade: gpt-oss-20b
 
@@ -152,6 +187,7 @@ coder/
 | G2.11 | Multi-agent teams enabled and functional | PASS |
 | G2.12 | gpt-oss-20b serving and agent conversing | PASS |
 | G2.13 | Community reference projects evaluated and documented | PASS |
+| G2.14 | Task management / spec-driven tools evaluated with ADR | PENDING |
 
 ---
 
@@ -334,11 +370,11 @@ cicd/
 
 > **Goal:** Evaluate multi-agent orchestration tools and define governance layer for coordinating agents at scale.
 >
-> **Reference:** [Gastown](https://github.com/steveyegge/gastown) | [Multica](https://github.com/multica-ai/multica)
+> **Reference:** [Gastown](https://github.com/gastownhall/gastown) | [Multica](https://github.com/multica-ai/multica)
 
 ### 10.1 Research and Evaluation
 
-- [ ] Deploy [Gastown](https://github.com/steveyegge/gastown) locally (Go, 14k stars)
+- [ ] Deploy [Gastown](https://github.com/gastownhall/gastown) locally (Go, 14k stars)
   - Mayor (AI coordinator), Polecats (worker agents), Convoys (work tracking)
   - Hooks (git worktree persistence), Refinery (merge queue), OTEL telemetry
 - [ ] Deploy [Multica](https://github.com/multica-ai/multica) locally (Next.js + Go + PostgreSQL, 12.2k stars)
