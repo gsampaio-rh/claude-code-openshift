@@ -35,8 +35,8 @@ Each sidecar gets a BuildConfig + ImageStream pair:
 
 | Sidecar | Source | Build Type | Manifests |
 |---------|--------|-----------|-----------|
-| claude-devtools | `github.com/matt1398/claude-devtools` (main) | Docker (upstream Dockerfile) | `devtools-build.yaml` |
-| agents-observe | `github.com/simple10/agents-observe` (main) | Docker (patched via Binary source) | `observability-build.yaml` |
+| claude-devtools | `github.com/matt1398/claude-devtools` (main) | Docker (upstream Dockerfile) | `agents/claude-devtools/manifests/build.yaml` |
+| agents-observe | `github.com/simple10/agents-observe` (main) | Docker (patched via Binary source) | `agents/agents-observe/manifests/build.yaml` |
 
 **agents-observe** uses a Binary source with a custom Dockerfile that:
 1. Clones the upstream repo in a `source` stage

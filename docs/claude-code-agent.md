@@ -89,9 +89,9 @@ Read-only transcript viewer UI. Runs in the same pod as `claude-code` and shares
 | **Access** | OpenShift Route with edge TLS termination |
 
 **Manifests:**
-- `agents/claude-code/manifests/devtools-build.yaml` — BuildConfig + ImageStream
-- `agents/claude-code/manifests/devtools-service.yaml` — Service (selector: `claude-code` pod)
-- `agents/claude-code/manifests/devtools-route.yaml` — Route (edge TLS)
+- `agents/claude-devtools/manifests/build.yaml` — BuildConfig + ImageStream
+- `agents/claude-devtools/manifests/service.yaml` — Service (selector: `claude-code` pod)
+- `agents/claude-devtools/manifests/route.yaml` — Route (edge TLS)
 
 ### 3. agents-observe (standalone deployment)
 
@@ -105,8 +105,8 @@ Real-time hook event monitoring dashboard. Receives structured events from Claud
 | **Access** | OpenShift Route with edge TLS, `haproxy.router.openshift.io/timeout: 300s` for WebSocket |
 
 **Manifests:**
-- `agents/claude-code/manifests/agents-observe-build.yaml` — BuildConfig + ImageStream
-- `agents/claude-code/manifests/agents-observe.yaml` — Deployment + Service + Route
+- `agents/agents-observe/manifests/build.yaml` — BuildConfig + ImageStream
+- `agents/agents-observe/manifests/deployment.yaml` — Deployment + Service + Route
 
 ---
 
@@ -215,29 +215,34 @@ The `agent-sandboxes` namespace has restrictive NetworkPolicy. Key rules for the
 ## File Structure
 
 ```
-agents/claude-code/
-├── Dockerfile              # Agent image: UBI9 + Node.js 22 + Claude Code CLI + MLflow
-├── entrypoint.sh           # Container startup: hook setup, MLflow init, log tail, sleep
-├── claude-logged            # Wrapper: claude -p with NDJSON output to log file
-├── set-trace-tags.py       # Per-trace metadata enrichment (disabled for PoC)
-├── hooks/
-│   ├── settings.json       # Claude Code hook config: 12 events → send_event.sh
-│   └── send_event.sh       # Hook script: stdin JSON → HTTP POST to agents-observe
-├── manifests/
-│   ├── standalone-pod.yaml # Deployment: claude-code + claude-devtools containers
-│   ├── configmap.yaml      # Environment config (inference, MLflow, OTel, model)
-│   ├── devtools-build.yaml # BuildConfig for claude-devtools image
-│   ├── devtools-service.yaml # Service for devtools (selector: agent pod)
-│   ├── devtools-route.yaml # Route for devtools (edge TLS)
-│   ├── agents-observe.yaml # Deployment + Service + Route for agents-observe
-│   └── agents-observe-build.yaml # BuildConfig for agents-observe image
-└── scripts/
-    ├── config.sh           # Shared config variables
-    ├── 00-setup.sh         # Namespace, RBAC, image streams
-    ├── 01-deploy-standalone.sh # Apply manifests and verify
-    ├── build-image.sh      # Trigger BuildConfig
-    ├── 99-verify.sh        # Health checks
-    └── 99-cleanup.sh       # Teardown
+agents/
+├── claude-code/
+│   ├── Dockerfile              # Agent image: UBI9 + Node.js 22 + Claude Code CLI + MLflow
+│   ├── entrypoint.sh           # Container startup: hook setup, MLflow init, log tail, sleep
+│   ├── claude-logged            # Wrapper: claude -p with NDJSON output to log file
+│   ├── set-trace-tags.py       # Per-trace metadata enrichment (disabled for PoC)
+│   ├── hooks/
+│   │   ├── settings.json       # Claude Code hook config: 12 events → send_event.sh
+│   │   └── send_event.sh       # Hook script: stdin JSON → HTTP POST to agents-observe
+│   ├── manifests/
+│   │   ├── standalone-pod.yaml # Deployment: claude-code + claude-devtools containers
+│   │   └── configmap.yaml      # Environment config (inference, MLflow, OTel, model)
+│   └── scripts/
+│       ├── config.sh           # Shared config variables
+│       ├── 00-setup.sh         # Namespace, RBAC, image streams
+│       ├── 01-deploy-standalone.sh # Apply manifests and verify
+│       ├── build-image.sh      # Trigger BuildConfig
+│       ├── 99-verify.sh        # Health checks
+│       └── 99-cleanup.sh       # Teardown
+├── claude-devtools/
+│   └── manifests/
+│       ├── build.yaml          # BuildConfig + ImageStream
+│       ├── service.yaml        # Service (selector: claude-code pod)
+│       └── route.yaml          # Route (edge TLS)
+└── agents-observe/
+    └── manifests/
+        ├── build.yaml          # BuildConfig + ImageStream
+        └── deployment.yaml     # Deployment + Service + Route
 ```
 
 ---
@@ -257,9 +262,9 @@ oc start-build agents-observe -n agent-sandboxes
 # 4. Apply manifests
 oc apply -f agents/claude-code/manifests/configmap.yaml
 oc apply -f agents/claude-code/manifests/standalone-pod.yaml
-oc apply -f agents/claude-code/manifests/devtools-service.yaml
-oc apply -f agents/claude-code/manifests/devtools-route.yaml
-oc apply -f agents/claude-code/manifests/agents-observe.yaml
+oc apply -f agents/claude-devtools/manifests/service.yaml
+oc apply -f agents/claude-devtools/manifests/route.yaml
+oc apply -f agents/agents-observe/manifests/deployment.yaml
 
 # 5. Use the agent
 oc exec -it deploy/claude-code-standalone -- claude                  # interactive

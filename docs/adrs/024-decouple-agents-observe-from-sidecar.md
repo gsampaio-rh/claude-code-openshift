@@ -50,7 +50,7 @@ dedicated Service and Route.
 1. **`standalone-pod.yaml`**: Removed agents-observe container. Pod now has 2
    containers: `claude-code` + `claude-devtools`.
 
-2. **`agents-observe.yaml`** (new): Standalone Deployment + Service + Route for
+2. **`agents/agents-observe/manifests/deployment.yaml`** (new): Standalone Deployment + Service + Route for
    agents-observe. Labels changed from `app.kubernetes.io/name: claude-code` to
    `app.kubernetes.io/name: agents-observe` for independent lifecycle.
 
