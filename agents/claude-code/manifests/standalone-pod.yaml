@@ -138,4 +138,47 @@ spec:
               type: RuntimeDefault
             capabilities:
               drop: ["ALL"]
+        - name: claude-task-viewer
+          image: image-registry.openshift-image-registry.svc:5000/agent-sandboxes/claude-task-viewer:latest
+          ports:
+            - containerPort: 3457
+              name: task-viewer-ui
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "3457"
+            - name: HOST
+              value: "0.0.0.0"
+          volumeMounts:
+            - name: claude-sessions
+              mountPath: /data/.claude
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3457
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3457
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
       restartPolicy: Always

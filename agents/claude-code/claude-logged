@@ -12,4 +12,11 @@ mkdir -p "$LOG_DIR"
 
 LOG_FILE="$LOG_DIR/claude.jsonl"
 
-claude -p --verbose --output-format stream-json "$@" | tee -a "$LOG_FILE"
+PERM_ARGS=()
+case "${CLAUDE_PERMISSION_MODE:-default}" in
+  dangerously-skip-permissions) PERM_ARGS+=(--dangerously-skip-permissions) ;;
+  default)                      ;; # no extra flags
+  *)                            PERM_ARGS+=(--permission-mode "$CLAUDE_PERMISSION_MODE") ;;
+esac
+
+claude -p --verbose --output-format stream-json "${PERM_ARGS[@]}" "$@" | tee -a "$LOG_FILE"

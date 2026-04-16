@@ -6,11 +6,28 @@ LOG_FILE="$LOG_DIR/claude.jsonl"
 mkdir -p "$LOG_DIR"
 touch "$LOG_FILE"
 
-# ── Observability hooks setup ────────────────────────────────
+# ── Claude Code global config (rules, skills, CLAUDE.md) ────
+RULES_SKILLS="/opt/app-root/rules-skills/.claude"
+if [[ -d "$RULES_SKILLS" ]]; then
+  mkdir -p "$HOME/.claude"
+  cp -r "$RULES_SKILLS"/* "$HOME/.claude/" 2>/dev/null || true
+fi
+
+# ── Observability hooks setup (merge into settings.json) ────
 HOOKS_SETTINGS="/opt/app-root/hooks/settings.json"
 if [[ -f "$HOOKS_SETTINGS" ]]; then
   mkdir -p "$HOME/.claude"
-  cp "$HOOKS_SETTINGS" "$HOME/.claude/settings.json"
+  if [[ -f "$HOME/.claude/settings.json" ]]; then
+    python3.12 -c "
+import json, sys
+with open('$HOME/.claude/settings.json') as f: base = json.load(f)
+with open('$HOOKS_SETTINGS') as f: hooks = json.load(f)
+base.update(hooks)
+with open('$HOME/.claude/settings.json', 'w') as f: json.dump(base, f, indent=2)
+"
+  else
+    cp "$HOOKS_SETTINGS" "$HOME/.claude/settings.json"
+  fi
 fi
 
 # ── MLflow tracing setup ─────────────────────────────────────
@@ -39,6 +56,8 @@ echo "  Base URL:   ${ANTHROPIC_BASE_URL:-not set}"
 echo "  Model:      ${ANTHROPIC_DEFAULT_SONNET_MODEL:-not set}"
 echo "  Max Output: ${CLAUDE_CODE_MAX_OUTPUT_TOKENS:-default}"
 echo "  MLflow:     $MLFLOW_TRACING"
+echo "  Rules:      $(test -d "$HOME/.claude/rules" && echo "enabled → $(ls "$HOME/.claude/rules/" | wc -l | tr -d ' ') rules" || echo 'disabled')"
+echo "  Skills:     $(test -d "$HOME/.claude/skills" && echo "enabled → $(ls "$HOME/.claude/skills/" | wc -l | tr -d ' ') skills" || echo 'disabled')"
 echo "  Hooks:      $(test -f "$HOME/.claude/settings.json" && echo 'enabled → agents-observe' || echo 'disabled')"
 echo "  Log Dir:    $LOG_DIR"
 echo "  Started:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"

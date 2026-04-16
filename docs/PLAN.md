@@ -11,11 +11,12 @@
 The AgentOps platform runs AI coding agents (Claude Code) on OpenShift with isolation, identity, governance, observability, and safety — without modifying the agent (BYOA principle). Five 1-week sprints cover PRD Phases 0–8, plus post-PoC exploration. Phase 9 (Dev Spaces) is post-PoC.
 
 ```
-Sprint 1 ████████████████████ Infrastructure + Inference + Standalone Agent  ✅ DONE
-Sprint 2 ████████████░░░░░░░░ Observability + Safety + CDE + UI/Multi-Agent ← CURRENT
-Sprint 3 ░░░░░░░░░░░░░░░░░░░░ Isolation + Identity (Kata + Kagenti)
-Sprint 4 ░░░░░░░░░░░░░░░░░░░░ Governance (MCP Gateway)
-Sprint 5 ░░░░░░░░░░░░░░░░░░░░ CI/CD + End-to-end integration
+Sprint 1   ████████████████████ Infrastructure + Inference + Standalone Agent  ✅ DONE
+Sprint 1.5 ████████████████████ UI/Multi-Agent Validation + Task Mgmt Eval   ✅ DONE
+Sprint 2   ████████████░░░░░░░░ Observability + Safety + CDE                 ← CURRENT
+Sprint 3   ░░░░░░░░░░░░░░░░░░░░ Isolation + Identity (Kata + Kagenti)
+Sprint 4   ░░░░░░░░░░░░░░░░░░░░ Governance (MCP Gateway)
+Sprint 5   ░░░░░░░░░░░░░░░░░░░░ CI/CD + End-to-end integration
 ```
 
 For completed work, see [CHANGELOG.md](CHANGELOG.md).
@@ -24,77 +25,61 @@ For completed work, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
-## Sprint 2 — Remaining Work
+## Sprint 1.5 — UI/Observability Adoption + Task Management Evaluation ✅ DONE
 
-> **Goal:** Guardrails intercepting requests. Coder running with functional workspaces. UI and multi-agent validation complete.
->
-> **PRD Phases:** 7 (done), 2, 3
+> **Goal:** Adopt claude-devtools, agents-observe, and claude-task-viewer. Evaluate task management tooling. Upgrade inference model. Configure headless agent permissions and task system.
 
-### claude-devtools validation
+### claude-devtools — ADOPTED
 
-- [ ] Validate context reconstruction (token attribution per turn in 7 categories)
+- [x] Deployed as sidecar in standalone pod (port 3456, Route with TLS)
+- [x] Context reconstruction, tool call inspector, subagent trees functional
 - [ ] Validate compaction visualization (exact moment + what was lost)
-- [ ] Validate tool call inspector (inline diffs, syntax highlighting, bash output)
-- [ ] Validate subagent trees (recursive execution trees with tokens, duration, cost)
 - [ ] Test multi-session side-by-side for multi-agent scenarios
 
-### agents-observe remaining
+### agents-observe — ADOPTED
 
+- [x] Deployed as hook-based sidecar with HTTP event collector
+- [x] Dashboard shows session timeline, tool calls, token usage
 - [ ] Validate subagent hierarchy in dashboard (parent/child tracking visual)
 - [ ] Test with long sessions (SQLite ephemeral stability)
 - [ ] Evaluate event persistence via PVC (currently `/tmp`, data lost on restart)
 
-### Multi-agent orchestration
+### Multi-agent task management — CANCELLED
 
-- [ ] Inter-agent communication (shared context, message passing)
-- [ ] Agent scheduling and prioritization in the cluster
-- [ ] Per-agent isolation (each in its own pod/microVM)
-- [ ] Cross-agent observability (distributed traces, aggregated cost)
-- [ ] Evaluate community projects:
-  - [Aperant](https://github.com/AndyMik90/Aperant) — Electron, up to 12 agents in parallel git worktrees
-  - [claude_code_agent_farm](https://github.com/Dicklesworthstone/claude_code_agent_farm) — 20+ parallel agents with lock coordination
-  - [claude-code-workflow-orchestration](https://github.com/barkain/claude-code-workflow-orchestration) — Multi-step plugin with specialized delegation
-  - [gastown](https://github.com/gastownhall/gastown) — Multi-agent workspace manager
-  - [harness](https://github.com/revfactory/harness) — Meta-skill that generates domain-specific agent teams
+> **Decision:** All third-party task management and spec-driven tools were evaluated and rejected. The agent follows a structured development workflow via `$HOME/.claude/rules/` and `$HOME/.claude/skills/` (cloned from [rules-skills](https://github.com/gsampaio-rh/rules-skills) at build time). This approach requires zero extra infrastructure, works in headless containers, and was validated end-to-end. See [ADR-025](adrs/025-structured-claude-rules-over-task-management-tools.md).
+>
+> Evaluated and discarded: Taskmaster, agtx, agi-le, vibe-kanban, Backlog.md, Planka, Scrumboy, Superpowers, OpenSpec, spec-kit.
 
-### Multi-agent task management exploration
+### claude-task-viewer — ADOPTED
 
-> **Problem:** Running multiple agents is one thing. Deciding *what* each agent works on, tracking progress, and ensuring specs are followed before code starts — that's the missing layer. Evaluate community approaches to agent task management and spec-driven development.
+- [x] Evaluated [claude-task-viewer](https://github.com/L1AD/claude-task-viewer) (Node.js, 554 stars, MIT)
+- [x] Deployed as sidecar in standalone pod (port 3457, Route with TLS)
+- [x] Shares `claude-sessions` volume read-only — watches `~/.claude/tasks/` via chokidar/SSE
+- [x] Discovered: Tasks v2 disabled in headless mode by default — fixed with `CLAUDE_CODE_ENABLE_TASKS=1`
+- [x] Validated: agent creates task JSON files, task-viewer displays them in real-time Kanban
+- See [ADR-026](adrs/026-enable-tasks-v2-headless.md) and [ADR-027](adrs/027-claude-task-viewer-sidecar.md)
 
-**Category A — Task management and orchestration:**
+**Limitation:** gpt-oss-20b does not spontaneously create tasks for simple prompts — only when complexity justifies it or when explicitly instructed. With Anthropic models (Opus 4.5+), task creation is more autonomous.
 
-- [ ] Evaluate [agi-le](https://github.com/gsampaio-rh/agi-le) (Python, file-based, agent-agnostic)
-  - Spec-driven project management: epics → stories → tasks, file-based state (`.agile/`), hexagonal architecture
-  - Agent Skill integration (SKILL.md standard), scheduler, conflict detection, handoff
-  - Our own project — test with Claude Code on a real feature
-- [ ] Evaluate [vibe-kanban](https://github.com/BloopAI/vibe-kanban) (Rust + TypeScript, 25.1k stars, Apache-2.0)
-  - Kanban board for coding agents: plan with issues, run agents in workspaces, review diffs inline
-  - Supports 10+ agents (Claude Code, Codex, Gemini CLI, Copilot, Amp, Cursor, etc.)
-  - Self-hostable (Docker, Caddy), MCP server built-in, git worktree per workspace
-- [ ] Evaluate [gastown](https://github.com/gastownhall/gastown) (Go, 14.1k stars, MIT)
-  - Multi-agent workspace manager: Mayor (AI coordinator), Polecats (workers), Convoys (work tracking)
-  - Git worktree persistence, merge queue (Refinery), three-tier health monitoring, OTEL telemetry
-  - Scheduler with capacity limits, federated work coordination (Wasteland)
+### Model upgrade: gpt-oss-20b — DONE
 
-**Category B — Spec-driven development:**
-
-- [ ] Evaluate [OpenSpec](https://github.com/Fission-AI/OpenSpec) (TypeScript, 40.2k stars, MIT)
-  - Spec framework: propose → specs → design → tasks, artifact-guided workflow
-  - Supports 25+ AI tools via slash commands, iterative not waterfall
-- [ ] Evaluate [spec-kit](https://github.com/github/spec-kit) (Python, GitHub official)
-  - Spec-driven development toolkit: constitution → specify → plan → tasks → build
-  - Phase-gated lifecycle, Python CLI (`specify`), extensible via presets and extensions
-
-**Evaluation criteria:**
-
-- [ ] Test each tool with Claude Code + vLLM on a real feature (e.g., add PVC persistence to agents-observe)
-- [ ] Compare: how well does each tool structure work for an AI agent vs a human?
-- [ ] Assess OpenShift compatibility (containerizable? rootless? file-based state vs DB?)
-- [ ] Document findings and recommendation in ADR
-
-### Model upgrade: gpt-oss-20b
-
+- [x] vLLM serving gpt-oss-20b on L40S GPU
 - [ ] Benchmark: compare latency and quality vs Qwen 2.5 14B
+
+### Headless agent configuration — DONE
+
+- [x] Added `CLAUDE_PERMISSION_MODE` env var to ConfigMap (controls `--dangerously-skip-permissions` without rebuild). See `claude-logged` wrapper.
+- [x] Added `CLAUDE_CODE_ENABLE_TASKS=1` to ConfigMap — enables Tasks v2 (file-based) in headless mode. See [ADR-026](adrs/026-enable-tasks-v2-headless.md).
+- [x] Validated: agent follows development workflow rules from `$HOME/.claude/rules/` (PRD, PLAN, CHANGELOG, etc.)
+- [x] Validated: agent creates task files in `~/.claude/tasks/` when using TaskCreate tool
+
+---
+
+## Sprint 2 — Guardrails + Safety + CDE
+
+> **Goal:** Guardrails intercepting requests. Coder running with functional workspaces.
+>
+> **PRD Phases:** 2, 3
 
 ### 2.2 TrustyAI Guardrails (Phase 2)
 
@@ -174,20 +159,11 @@ coder/
 
 | # | Criterion | Status |
 |---|-----------|--------|
-| G2.1 | Tool call traces appear in MLflow (AC-6) | PASS |
-| G2.2 | MLflow receiving traces via `mlflow autolog claude` | PASS |
-| G2.3 | Data captured: prompts, tokens, latency, tools | PASS |
-| G2.4 | Request with PII blocked by TrustyAI (AC-5) | PENDING |
-| G2.5 | Clean request reaches vLLM via Guardrails | PENDING |
-| G2.6 | Coder UI accessible via Route with TLS | PENDING |
-| G2.7 | Dev creates workspace and Claude Code works (AC-1) | PENDING |
-| G2.8 | OIDC auth works (login via OpenShift) | PENDING |
-| G2.9 | claude-devtools accessible via Route with session visible | PASS |
-| G2.10 | Context reconstruction shows token breakdown per turn | PENDING |
-| G2.11 | Multi-agent teams enabled and functional | PASS |
-| G2.12 | gpt-oss-20b serving and agent conversing | PASS |
-| G2.13 | Community reference projects evaluated and documented | PASS |
-| G2.14 | Task management / spec-driven tools evaluated with ADR | PENDING |
+| G2.1 | Request with PII blocked by TrustyAI (AC-5) | PENDING |
+| G2.2 | Clean request reaches vLLM via Guardrails | PENDING |
+| G2.3 | Coder UI accessible via Route with TLS | PENDING |
+| G2.4 | Dev creates workspace and Claude Code works (AC-1) | PENDING |
+| G2.5 | OIDC auth works (login via OpenShift) | PENDING |
 
 ---
 
@@ -445,21 +421,24 @@ orchestration/
 
 ```mermaid
 flowchart LR
-    S1["Sprint 1\nInfra + vLLM\n+ Claude standalone"] --> S2["Sprint 2\nObservability +\nSafety + Coder"]
+    S1["Sprint 1\nInfra + vLLM\n+ Claude standalone"] --> S15["Sprint 1.5\nUI + Observability\n+ Task Mgmt Eval"]
+    S15 --> S2["Sprint 2\nGuardrails +\nSafety + CDE"]
     S2 --> S3["Sprint 3\nKata + Kagenti"]
     S3 --> S4["Sprint 4\nMCP Gateway"]
     S4 --> S5["Sprint 5\nCI/CD + E2E"]
     S5 --> PostPoC["Post-PoC\nDev Spaces +\nAgent Orchestration"]
 
-    S1 -->|"vLLM + agent validated"| S2
-    S2 -->|"MLflow + Guardrails + Coder"| S3
+    S1 -->|"vLLM + agent validated"| S15
+    S15 -->|"devtools + agents-observe + gpt-oss-20b"| S2
+    S2 -->|"Guardrails + Coder"| S3
     S3 -->|"SPIFFE tokens"| S4
     S4 -->|"Full stack"| S5
     S5 -->|"Stack validated E2E"| PostPoC
 ```
 
 **Critical dependencies:**
-- Sprint 2 depends on vLLM + standalone agent validated (Sprint 1 — done)
+- Sprint 1.5 depends on vLLM + standalone agent validated (Sprint 1 — done)
+- Sprint 2 depends on observability stack validated (Sprint 1.5 — done)
 - Sprint 3 depends on Coder functional (Sprint 2) to test Kata in workspaces
 - Sprint 4 depends on SPIFFE tokens (Sprint 3) for MCP Gateway authentication
 - Sprint 5 is integration — depends on everything

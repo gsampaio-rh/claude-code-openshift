@@ -148,6 +148,59 @@ Four community tools evaluated for Claude Code UI/observability:
 
 ---
 
+## Sprint 1.5 — UI/Observability Adoption + Task Management Evaluation
+
+**Date:** 2026-04-14 – 2026-04-16
+**Status:** Complete
+
+Validated and adopted UI/observability sidecars (claude-devtools, claude-task-viewer), evaluated and discarded all third-party task management tools in favor of structured `.claude` rules/skills, upgraded inference to gpt-oss-20b, and configured headless agent permissions and task system.
+
+### Key Outcomes
+
+- **claude-devtools** adopted as sidecar — session transcript viewer, sharing `claude-sessions` volume
+- **agents-observe** adopted as standalone Deployment — hook-based observability dashboard
+- **claude-task-viewer** adopted as sidecar — read-only Kanban board for Tasks v2 files (`~/.claude/tasks/`), port 3457
+- **Tasks v2** enabled in headless mode via `CLAUDE_CODE_ENABLE_TASKS=1` — agent creates persistent task JSON files
+- **Headless permissions** configurable via `CLAUDE_PERMISSION_MODE` env var — no image rebuild needed
+- **Development workflow** codified in `.claude/rules/` and `.claude/skills/` (cloned from [rules-skills](https://github.com/gsampaio-rh/rules-skills))
+- **gpt-oss-20b** deployed and validated on L40S GPU
+
+### Multi-Agent Task Management — Evaluated & Discarded
+
+| Tool | Category | Outcome |
+|------|----------|---------|
+| Taskmaster | MCP task manager | Integrated → rolled back (context window overflow, excessive tool surface) |
+| Backlog.md | MCP + Kanban UI | Integrated → rolled back (requires git init, interactive prompts, fragile MCP) |
+| agi-le | Agile CLI | Discarded (single-agent, no headless support) |
+| vibe-kanban | Kanban board | Discarded (standalone app, no agent integration) |
+| agtx | Agent task executor | Discarded (early stage, insufficient docs) |
+| Superpowers | Agent framework | Discarded (opinionated workflow, does not fit) |
+| OpenSpec | Spec generator | Discarded (spec-only, no task tracking) |
+| spec-kit | Spec toolkit | Discarded (GitHub-native, no OpenShift integration) |
+| Scrumboy | Scrum board | Discarded (web app, no MCP) |
+| Planka | Kanban board | Discarded (standalone, no agent integration) |
+
+**Decision:** Structured `.claude` rules and skills provide the same workflow enforcement with zero extra infrastructure. See [ADR-025](adrs/025-structured-claude-rules-over-task-management-tools.md).
+
+### Decisions
+
+| ADR | Decision |
+|-----|----------|
+| [ADR-025](adrs/025-structured-claude-rules-over-task-management-tools.md) | Structured `.claude` rules over third-party task management tools |
+| [ADR-026](adrs/026-enable-tasks-v2-headless.md) | Enable Tasks v2 in headless mode via `CLAUDE_CODE_ENABLE_TASKS=1` |
+| [ADR-027](adrs/027-claude-task-viewer-sidecar.md) | claude-task-viewer as sidecar for task observability |
+
+### Notable Problems Solved
+
+- `TodoWrite` vs `Tasks v2` in headless mode — `isTodoV2Enabled()` returns false in non-interactive sessions, fixed with env var
+- `CLAUDE_PERMISSION_MODE` env var — avoids image rebuild for permission changes
+- npm `EACCES` in OpenShift (arbitrary UID) — pre-create `.npm` cache with group-write permissions
+- Backlog.md `backlog init` requires git repo with user config — fragile in ephemeral containers
+- Context window overflow (32K) with verbose MCP tool schemas — shorter prompts or fewer tools needed
+- gpt-oss-20b does not spontaneously create tasks/workflow docs — requires explicit instruction for complex workflows
+
+---
+
 ## Exploration Sprint A — Inference Observability (vLLM)
 
 **Date:** 2026-04-13

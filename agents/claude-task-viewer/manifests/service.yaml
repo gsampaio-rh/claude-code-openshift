@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: claude-task-viewer
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/component: task-viewer
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  selector:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/component: agent-standalone
+  ports:
+    - name: task-viewer-ui
+      port: 3457
+      targetPort: 3457
+      protocol: TCP

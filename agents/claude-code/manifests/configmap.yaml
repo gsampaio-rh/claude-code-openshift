@@ -51,6 +51,15 @@ data:
   OTEL_EXPORTER_OTLP_LOGS_PROTOCOL: "http/protobuf"
   OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318/v1/logs"
   OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: "cumulative"
+  # Enable Tasks v2 (file-based task management in ~/.claude/tasks/).
+  # Without this, headless (-p) mode falls back to deprecated TodoWrite (in-memory only).
+  # Ref: src/utils/tasks.ts — isTodoV2Enabled()
+  CLAUDE_CODE_ENABLE_TASKS: "1"
+  # Permission mode for headless (-p) invocations.
+  # "dangerously-skip-permissions" — agent can read/write/execute without prompts (safe in sandboxed Kata pods)
+  # "default" — agent asks for permission on each tool use (blocks in headless mode)
+  # Ref: claude --help | grep permission
+  CLAUDE_PERMISSION_MODE: "dangerously-skip-permissions"
   # AgentOps per-trace metadata — DISABLED for PoC (single agent).
   # Re-enable with set-trace-tags.py when multi-agent requires per-trace
   # pod/node identification. See ADR-020.
