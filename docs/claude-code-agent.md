@@ -1,8 +1,8 @@
 # Claude Code Agent — Architecture & Component Guide
 
 **Status:** Current
-**Date:** 2026-04-14
-**Related:** [ARCHITECTURE.md](ARCHITECTURE.md) | [ADR-022](adrs/022-agents-observe-hook-sidecar.md) | [ADR-024](adrs/024-decouple-agents-observe-from-sidecar.md)
+**Date:** 2026-04-16
+**Related:** [ARCHITECTURE.md](ARCHITECTURE.md) | [ADR-022](adrs/022-agents-observe-hook-sidecar.md) | [ADR-024](adrs/024-decouple-agents-observe-from-sidecar.md) | [ADR-026](adrs/026-enable-tasks-v2-headless.md) | [ADR-027](adrs/027-claude-task-viewer-sidecar.md)
 
 ---
 
@@ -16,15 +16,15 @@ The Claude Code agent runs as a containerized deployment on OpenShift, connectin
 │  ┌─ ns: agent-sandboxes ──────────────────────────────────────────────────────────────────┐ │
 │  │                                                                                        │ │
 │  │  ┌─ Deployment: claude-code-standalone ────────────────────────────────────────────┐   │ │
-│  │  │  ┌───────────────────────────┐    ┌──────────────────────────┐                  │   │ │
-│  │  │  │  claude-code              │    │  claude-devtools         │                  │   │ │
-│  │  │  │  UBI9 + Node.js 22       │    │  Session transcript UI   │                  │   │ │
-│  │  │  │  Claude Code CLI         │    │  Port 3456               │                  │   │ │
-│  │  │  │  MLflow + OTel SDK       │    │  Reads ~/.claude/ (RO)   │                  │   │ │
-│  │  │  │  Hooks → send_event.sh   │    │                          │                  │   │ │
-│  │  │  └──────────┬───────────────┘    └──────────────────────────┘                  │   │ │
-│  │  │             │ emptyDir: claude-sessions (shared volume)                         │   │ │
-│  │  └─────────────┼──────────────────────────────────────────────────────────────────┘   │ │
+│  │  │  ┌───────────────────────────┐  ┌────────────────────────┐  ┌─────────────────────┐│   │ │
+│  │  │  │  claude-code              │  │  claude-devtools       │  │  claude-task-viewer  ││   │ │
+│  │  │  │  UBI9 + Node.js 22       │  │  Session transcript UI │  │  Task Kanban board   ││   │ │
+│  │  │  │  Claude Code CLI         │  │  Port 3456             │  │  Port 3457           ││   │ │
+│  │  │  │  MLflow + OTel SDK       │  │  Reads ~/.claude/ (RO) │  │  Reads tasks/ (RO)   ││   │ │
+│  │  │  │  Hooks → send_event.sh   │  │                        │  │  SSE live updates    ││   │ │
+│  │  │  └──────────┬───────────────┘  └────────────────────────┘  └─────────────────────┘│   │ │
+│  │  │             │ emptyDir: claude-sessions (shared volume, RO for sidecars)           │   │ │
+│  │  └─────────────┼────────────────────────────────────────────────────────────────────┘   │ │
 │  │                │                                                                      │ │
 │  │                │ HTTP POST (hook events)                                               │ │
 │  │                ▼                                                                       │ │
@@ -56,7 +56,7 @@ The agent runtime. Runs Claude Code CLI in a UBI9 + Node.js 22 image with MLflow
 |--------|--------|
 | **Image** | Built from `agents/claude-code/Dockerfile` via BuildConfig |
 | **Base** | `registry.access.redhat.com/ubi9/nodejs-22` |
-| **Entrypoint** | `entrypoint.sh` — copies hook settings, enables MLflow tracing, tails log file, sleeps forever |
+| **Entrypoint** | `entrypoint.sh` — copies rules-skills to `$HOME/.claude/`, merges hook settings into `settings.json`, enables MLflow tracing, tails log file, sleeps forever |
 | **Invocation** | `oc exec -it <pod> -- claude` (interactive) or `claude-logged "prompt"` (headless + logs) |
 | **Runtime class** | `kata` (hardware-isolated MicroVM via QEMU/KVM on bare metal nodes) |
 | **Config** | `ConfigMap: claude-code-config` injected via `envFrom` |
@@ -71,6 +71,8 @@ The agent runtime. Runs Claude Code CLI in a UBI9 + Node.js 22 image with MLflow
 | `CLAUDE_CODE_ATTRIBUTION_HEADER` | Disables per-request hash that breaks vLLM prefix caching |
 | `MLFLOW_TRACKING_URI` | MLflow server for native Claude Code tracing |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | Enables multi-agent / subagent spawning |
+| `CLAUDE_CODE_ENABLE_TASKS` | Enables Tasks v2 (file-based) in headless mode ([ADR-026](adrs/026-enable-tasks-v2-headless.md)) |
+| `CLAUDE_PERMISSION_MODE` | Controls `--dangerously-skip-permissions` without image rebuild |
 | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | OTLP push endpoint for OTel metrics |
 
 **Manifests:**
@@ -93,7 +95,25 @@ Read-only transcript viewer UI. Runs in the same pod as `claude-code` and shares
 - `agents/claude-devtools/manifests/service.yaml` — Service (selector: `claude-code` pod)
 - `agents/claude-devtools/manifests/route.yaml` — Route (edge TLS)
 
-### 3. agents-observe (standalone deployment)
+### 3. claude-task-viewer (sidecar)
+
+Read-only Kanban board for Tasks v2. Watches `~/.claude/tasks/` via chokidar and serves real-time updates via SSE. Runs in the same pod as `claude-code`, sharing the `claude-sessions` volume.
+
+| Aspect | Detail |
+|--------|--------|
+| **Why sidecar** | Requires filesystem access to `~/.claude/tasks/` (JSON task files). Same pattern as claude-devtools. |
+| **Volume mount** | `claude-sessions` mounted at `/data/.claude` (read-only) |
+| **Port** | 3457 |
+| **Access** | OpenShift Route with edge TLS termination |
+| **Requires** | `CLAUDE_CODE_ENABLE_TASKS=1` in ConfigMap — without it, the agent uses in-memory TodoWrite and no task files are created ([ADR-026](adrs/026-enable-tasks-v2-headless.md)) |
+
+**Manifests:**
+- `agents/claude-task-viewer/Dockerfile` — Image: UBI9 + Node.js 22 + `npm install claude-task-viewer`
+- `agents/claude-task-viewer/manifests/build.yaml` — BuildConfig + ImageStream
+- `agents/claude-task-viewer/manifests/service.yaml` — Service (selector: `claude-code` pod)
+- `agents/claude-task-viewer/manifests/route.yaml` — Route (edge TLS)
+
+### 4. agents-observe (standalone deployment)
 
 Real-time hook event monitoring dashboard. Receives structured events from Claude Code hooks via HTTP POST and displays them in a React dashboard with WebSocket live updates.
 
@@ -198,6 +218,7 @@ The `agent-sandboxes` namespace has restrictive NetworkPolicy. Key rules for the
 | **Egress** | Agent pods → `ns:observability` | 4318 | OTel Collector (OTLP) |
 | **Egress** | Agent pods → `agents-observe` pods | 4981 | Hook event delivery |
 | **Ingress** | OpenShift Router → agent pods | 3456 | claude-devtools UI |
+| **Ingress** | OpenShift Router → agent pods | 3457 | claude-task-viewer UI |
 | **Ingress** | Any pod in namespace → agents-observe | 4981 | Hook event ingress |
 | **Ingress** | OpenShift Router → agents-observe | 4981 | agents-observe UI |
 
@@ -217,17 +238,23 @@ The `agent-sandboxes` namespace has restrictive NetworkPolicy. Key rules for the
 ```
 agents/
 ├── claude-code/
-│   ├── Dockerfile              # Agent image: UBI9 + Node.js 22 + Claude Code CLI + MLflow
-│   ├── entrypoint.sh           # Container startup: hook setup, MLflow init, log tail, sleep
-│   ├── claude-logged            # Wrapper: claude -p with NDJSON output to log file
+│   ├── Dockerfile              # Agent image: UBI9 + Node.js 22 + Claude Code CLI + MLflow + rules-skills
+│   ├── entrypoint.sh           # Container startup: rules-skills copy, hook merge, MLflow init, log tail, sleep
+│   ├── claude-logged            # Wrapper: claude -p with permission mode from env var
 │   ├── set-trace-tags.py       # Per-trace metadata enrichment (disabled for PoC)
 │   ├── hooks/
 │   │   ├── settings.json       # Claude Code hook config: 12 events → send_event.sh
 │   │   └── send_event.sh       # Hook script: stdin JSON → HTTP POST to agents-observe
 │   ├── manifests/
-│   │   ├── standalone-pod.yaml # Deployment: claude-code + claude-devtools containers
-│   │   └── configmap.yaml      # Environment config (inference, MLflow, OTel, model)
+│   │   ├── standalone-pod.yaml # Deployment: claude-code + claude-devtools + claude-task-viewer
+│   │   └── configmap.yaml      # Environment config (inference, MLflow, OTel, model, tasks, permissions)
 ├── claude-devtools/
+│   └── manifests/
+│       ├── build.yaml          # BuildConfig + ImageStream
+│       ├── service.yaml        # Service (selector: claude-code pod)
+│       └── route.yaml          # Route (edge TLS)
+├── claude-task-viewer/
+│   ├── Dockerfile              # Image: UBI9 + Node.js 22 + claude-task-viewer
 │   └── manifests/
 │       ├── build.yaml          # BuildConfig + ImageStream
 │       ├── service.yaml        # Service (selector: claude-code pod)
@@ -256,14 +283,19 @@ oc start-build claude-code-agent --from-dir=agents/claude-code -n agent-sandboxe
 # 2. Build devtools image
 oc start-build claude-devtools -n agent-sandboxes
 
-# 3. Build agents-observe image
+# 3. Build task-viewer image
+oc start-build claude-task-viewer --from-dir=agents/claude-task-viewer -n agent-sandboxes
+
+# 4. Build agents-observe image
 oc start-build agents-observe -n agent-sandboxes
 
-# 4. Apply manifests
+# 5. Apply manifests
 oc apply -f agents/claude-code/manifests/configmap.yaml
 oc apply -f agents/claude-code/manifests/standalone-pod.yaml
 oc apply -f agents/claude-devtools/manifests/service.yaml
 oc apply -f agents/claude-devtools/manifests/route.yaml
+oc apply -f agents/claude-task-viewer/manifests/service.yaml
+oc apply -f agents/claude-task-viewer/manifests/route.yaml
 oc apply -f agents/agents-observe/manifests/deployment.yaml
 
 # 5. Use the agent
@@ -278,8 +310,11 @@ oc exec deploy/claude-code-standalone -- claude-logged "prompt"      # headless
 | Decision | Rationale | ADR |
 |----------|-----------|-----|
 | Sidecar for devtools | Requires filesystem access to `~/.claude/` session data | — |
+| Sidecar for task-viewer | Requires filesystem access to `~/.claude/tasks/` | [ADR-027](adrs/027-claude-task-viewer-sidecar.md) |
 | Standalone for agents-observe | HTTP-only communication, independent lifecycle | [ADR-024](adrs/024-decouple-agents-observe-from-sidecar.md) |
 | Synchronous hook execution | Background subshell killed before HTTP completes | [ADR-024](adrs/024-decouple-agents-observe-from-sidecar.md) |
+| Tasks v2 via env var | Headless mode defaults to in-memory TodoWrite; `CLAUDE_CODE_ENABLE_TASKS=1` enables file-based tasks | [ADR-026](adrs/026-enable-tasks-v2-headless.md) |
+| `.claude` rules over task mgmt tools | Zero-infra workflow enforcement via rules-skills repo cloned at build time | [ADR-025](adrs/025-structured-claude-rules-over-task-management-tools.md) |
 | Kata runtime class | Hardware VM isolation for untrusted agent code | [ADR-017](adrs/017-kata-containers-for-agent-isolation.md) |
 | vLLM as inference backend | Anthropic Messages API compatibility, prefix caching | — |
 | MLflow for traces | Native Claude Code integration, no custom instrumentation | [ADR-019](adrs/019-observability-otel-mlflow-grafana.md) |

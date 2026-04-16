@@ -13,7 +13,9 @@ The AgentOps platform runs AI coding agents (Claude Code) on OpenShift with isol
 ```
 Sprint 1   ████████████████████ Infrastructure + Inference + Standalone Agent  ✅ DONE
 Sprint 1.5 ████████████████████ UI/Multi-Agent Validation + Task Mgmt Eval   ✅ DONE
-Sprint 2   ████████████░░░░░░░░ Observability + Safety + CDE                 ← CURRENT
+Sprint 1.6 ░░░░░░░░░░░░░░░░░░░░ Slack Integration                           ← NEXT
+Sprint 1.7 ░░░░░░░░░░░░░░░░░░░░ Model Scaling Evaluation (120B+)
+Sprint 2   ████████████░░░░░░░░ Guardrails + Safety + CDE                    ← CURRENT
 Sprint 3   ░░░░░░░░░░░░░░░░░░░░ Isolation + Identity (Kata + Kagenti)
 Sprint 4   ░░░░░░░░░░░░░░░░░░░░ Governance (MCP Gateway)
 Sprint 5   ░░░░░░░░░░░░░░░░░░░░ CI/CD + End-to-end integration
@@ -72,6 +74,108 @@ For completed work, see [CHANGELOG.md](CHANGELOG.md).
 - [x] Added `CLAUDE_CODE_ENABLE_TASKS=1` to ConfigMap — enables Tasks v2 (file-based) in headless mode. See [ADR-026](adrs/026-enable-tasks-v2-headless.md).
 - [x] Validated: agent follows development workflow rules from `$HOME/.claude/rules/` (PRD, PLAN, CHANGELOG, etc.)
 - [x] Validated: agent creates task files in `~/.claude/tasks/` when using TaskCreate tool
+
+---
+
+## Sprint 1.6 — Slack Integration
+
+> **Goal:** Connect the Claude Code agent to Slack so users can trigger prompts, receive results, and interact with the agent conversationally from a channel or DM.
+
+### Architecture options
+
+- [ ] Evaluate integration approach:
+  - **Option A — Slack bot → `claude -p`:** Slack bot receives messages, shells out to `claude -p` in the pod, streams response back. Simplest path — no new runtime, just a bot adapter.
+  - **Option B — Slack bot → headless API wrapper:** Thin HTTP API in front of `claude -p` that the Slack bot calls. Adds request queuing, timeouts, and concurrent session management.
+  - **Option C — MCP server for Slack:** Claude Code calls Slack via MCP tools (send message, read channel, react). Agent-initiated, not user-initiated.
+- [ ] Decide: user-initiated (A/B) vs agent-initiated (C) vs both
+
+### Implementation
+
+- [ ] Create Slack App with Bot Token (`xoxb-*`) and Event Subscriptions
+- [ ] Deploy Slack bot adapter in `agent-sandboxes` namespace
+- [ ] Configure permissions: `chat:write`, `app_mentions:read`, `im:history`, `channels:history`
+- [ ] Route Slack events to the Claude Code pod (webhook → bot → `claude -p`)
+- [ ] Handle response streaming: Slack has 3s acknowledgment deadline — post initial reply, then update with full response
+- [ ] Thread support: map Slack threads to Claude Code sessions (`--resume`)
+- [ ] Rate limiting: prevent Slack channel flooding and excessive agent invocations
+- [ ] Security: validate Slack request signatures, restrict to allowed channels/users
+
+### Observability
+
+- [ ] Slack interactions visible in agents-observe (hook events include Slack metadata)
+- [ ] MLflow traces tagged with Slack channel/user
+- [ ] Task-viewer shows tasks created from Slack-triggered sessions
+
+### Artifacts
+
+```
+agents/claude-slack/
+├── Dockerfile
+├── manifests/
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── route.yaml
+│   └── secret.yaml          # Slack Bot Token, Signing Secret
+├── src/
+│   └── bot.py                # Slack event handler → claude -p
+└── README.md
+```
+
+---
+
+## Sprint 1.7 — Model Scaling Evaluation (120B+)
+
+> **Goal:** Evaluate infrastructure requirements for running GPT-oss 120B (or equivalent large models), and compare against more efficient alternatives that could deliver similar quality with less GPU.
+
+### GPU & infrastructure assessment
+
+- [ ] Document current setup: 1x L40S 48GB → gpt-oss-20b (32K context, ~23s E2E)
+- [ ] Estimate VRAM for GPT-oss 120B:
+  - FP16: ~240GB (5x A100 80GB or 3x H100 80GB)
+  - FP8: ~120GB (2x H100 80GB or 3x A100 80GB)
+  - GPTQ/AWQ 4-bit: ~60GB (1x H100 80GB or 2x A100 80GB)
+- [ ] Check available GPU instance types in sandbox cluster (H100, A100, multi-GPU)
+- [ ] Estimate cost delta: current L40S vs multi-GPU for 120B
+- [ ] Evaluate vLLM tensor parallelism config for multi-GPU serving
+
+### Model alternatives to evaluate
+
+- [ ] Research models in the 40B–120B range with strong coding performance:
+  - **Qwen 2.5 Coder 72B** — dedicated coding model, strong benchmarks, fits in 2x A100 (FP8)
+  - **DeepSeek-V3/R1** — 671B MoE but only ~37B active params, competitive coding, efficient inference
+  - **Llama 3.3 70B** — Meta's latest, good general + code, fits in 1x H100 (FP8)
+  - **CodeStral 2025** — Mistral's coding model, evaluate latest version
+  - Other emerging open models with strong SWE-bench / HumanEval scores
+- [ ] Compare on key metrics:
+  - VRAM requirement (FP16, FP8, 4-bit)
+  - Tokens/second at coding tasks
+  - Code quality (functional correctness, type hints, tests)
+  - Context window (32K minimum, 128K+ preferred)
+  - Tool calling reliability (critical for Claude Code)
+  - License (commercial-friendly)
+
+### Benchmarking plan
+
+- [ ] Define benchmark suite:
+  - Fibonacci / simple math (latency baseline)
+  - Function with types + docstring (code quality)
+  - Multi-file refactor (context handling)
+  - Tool-use scenario: read file → edit → test (agent capability)
+  - Task decomposition: complex prompt → TaskCreate calls (planning quality)
+- [ ] Run each candidate model through the suite on the cluster
+- [ ] Document results in comparison table
+- [ ] Write ADR with recommendation
+
+### Decision criteria
+
+| Criterion | Weight | Notes |
+|-----------|--------|-------|
+| Code quality | High | Must produce functional, typed code |
+| Tool calling | High | Claude Code relies on structured tool calls |
+| GPU cost | Medium | Fewer GPUs = lower operational cost |
+| Latency | Medium | <30s for complex prompts, <5s for simple |
+| Context window | Medium | 32K minimum, 128K preferred for large codebases |
+| License | Low | Must allow commercial/internal use |
 
 ---
 
@@ -422,6 +526,8 @@ orchestration/
 ```mermaid
 flowchart LR
     S1["Sprint 1\nInfra + vLLM\n+ Claude standalone"] --> S15["Sprint 1.5\nUI + Observability\n+ Task Mgmt Eval"]
+    S15 --> S16["Sprint 1.6\nSlack Integration"]
+    S15 --> S17["Sprint 1.7\nModel Scaling\n(120B+)"]
     S15 --> S2["Sprint 2\nGuardrails +\nSafety + CDE"]
     S2 --> S3["Sprint 3\nKata + Kagenti"]
     S3 --> S4["Sprint 4\nMCP Gateway"]
@@ -429,6 +535,8 @@ flowchart LR
     S5 --> PostPoC["Post-PoC\nDev Spaces +\nAgent Orchestration"]
 
     S1 -->|"vLLM + agent validated"| S15
+    S15 -->|"devtools + agents-observe + gpt-oss-20b"| S16
+    S15 -->|"baseline perf data"| S17
     S15 -->|"devtools + agents-observe + gpt-oss-20b"| S2
     S2 -->|"Guardrails + Coder"| S3
     S3 -->|"SPIFFE tokens"| S4
@@ -438,6 +546,8 @@ flowchart LR
 
 **Critical dependencies:**
 - Sprint 1.5 depends on vLLM + standalone agent validated (Sprint 1 — done)
+- Sprint 1.6 depends on agent + observability validated (Sprint 1.5 — done). Parallel to Sprint 2.
+- Sprint 1.7 depends on baseline perf data from gpt-oss-20b (Sprint 1.5 — done). Parallel to Sprint 2.
 - Sprint 2 depends on observability stack validated (Sprint 1.5 — done)
 - Sprint 3 depends on Coder functional (Sprint 2) to test Kata in workspaces
 - Sprint 4 depends on SPIFFE tokens (Sprint 3) for MCP Gateway authentication
@@ -450,6 +560,10 @@ flowchart LR
 
 | Sprint | Risk | Mitigation |
 |--------|------|------------|
+| 1.6 | Slack 3s ack deadline — long agent responses timeout | Post initial reply, update async with full response |
+| 1.6 | Agent invocation spam from Slack channels | Rate limiter + allowlist of channels/users |
+| 1.7 | Multi-GPU instances unavailable in sandbox | Request quota increase; test with quantized models first |
+| 1.7 | 120B model too slow for interactive use (<1 tok/s) | Evaluate MoE alternatives (DeepSeek) or stick with 70B class |
 | 2 | MLflow storage insufficient for traces | Monitor PVC usage; expand or use S3 |
 | 2 | Coder SCC conflicts with restricted-v2 | Follow official docs; test with anyuid if needed |
 | 2 | TrustyAI high latency | Measure; disable heavy detectors |
