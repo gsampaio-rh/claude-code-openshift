@@ -168,17 +168,17 @@ fi
 
 if [[ "$SKIP_AGENT" == "false" ]]; then
   run_step "Claude Code setup check" \
-    bash "$AGENTS_DIR/claude-code/scripts/00-setup.sh"
+    bash "$AGENTS_DIR/scripts/00-setup.sh"
 
   run_step "Claude Code image build" \
-    bash "$AGENTS_DIR/claude-code/scripts/build-image.sh"
+    bash "$AGENTS_DIR/scripts/build-image.sh"
 
   run_step "Claude Code standalone deploy" \
-    bash "$AGENTS_DIR/claude-code/scripts/01-deploy-standalone.sh"
+    bash "$AGENTS_DIR/scripts/01-deploy-standalone.sh"
 
   if [[ "$SKIP_VERIFY" == "false" ]]; then
     run_step "Claude Code verification" \
-      bash "$AGENTS_DIR/claude-code/scripts/99-verify.sh"
+      bash "$AGENTS_DIR/scripts/99-verify.sh"
   else
     skip_step "Claude Code verification"
   fi

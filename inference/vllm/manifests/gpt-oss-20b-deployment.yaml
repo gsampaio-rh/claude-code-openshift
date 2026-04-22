@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gpt-oss-20b-model-cache
+  namespace: inference
+  labels:
+    app.kubernetes.io/name: gpt-oss-20b
+    app.kubernetes.io/component: model-serving
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-csi
+  resources:
+    requests:
+      storage: 30Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpt-oss-20b
+  namespace: inference
+  labels:
+    app.kubernetes.io/name: gpt-oss-20b
+    app.kubernetes.io/component: model-serving
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gpt-oss-20b
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gpt-oss-20b
+        app.kubernetes.io/component: model-serving
+        app.kubernetes.io/part-of: agentops-platform
+    spec:
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      nodeSelector:
+        nvidia.com/gpu.product: NVIDIA-L40S
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - --port=8080
+            - --model=openai/gpt-oss-20b
+            - --served-model-name=gpt-oss-20b
+            - --max-model-len=32768
+            - --tool-call-parser=openai
+            - --enable-auto-tool-choice
+            - --enable-chunked-prefill
+            - --gpu-memory-utilization=0.90
+            - --download-dir=/mnt/models
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+              name: http
+          env:
+            - name: HF_HOME
+              value: /mnt/models
+            - name: TRANSFORMERS_CACHE
+              value: /mnt/models
+            - name: XDG_CACHE_HOME
+              value: /mnt/models/.cache
+            - name: NUMBA_CACHE_DIR
+              value: /tmp/numba_cache
+            - name: TRITON_CACHE_DIR
+              value: /tmp/triton_cache
+            - name: HOME
+              value: /mnt/models
+          resources:
+            requests:
+              cpu: "1"
+              memory: 8Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "4"
+              memory: 48Gi
+              nvidia.com/gpu: "1"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: model-cache
+              mountPath: /mnt/models
+            - name: tmp
+              mountPath: /tmp
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 90
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 5
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: gpt-oss-20b-model-cache
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpt-oss-20b
+  namespace: inference
+  labels:
+    app.kubernetes.io/name: gpt-oss-20b
+    app.kubernetes.io/component: model-serving
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  selector:
+    app.kubernetes.io/name: gpt-oss-20b
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  type: ClusterIP

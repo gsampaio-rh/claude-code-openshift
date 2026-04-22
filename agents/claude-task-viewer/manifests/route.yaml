@@ -1,0 +1,18 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: claude-task-viewer
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/component: task-viewer
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  to:
+    kind: Service
+    name: claude-task-viewer
+  port:
+    targetPort: task-viewer-ui
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

@@ -1,0 +1,37 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: slack-bridge
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: slack-bridge
+    app.kubernetes.io/component: slack-bridge
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: slack-bridge:latest
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: slack-bridge
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: slack-bridge
+    app.kubernetes.io/component: slack-bridge
+    app.kubernetes.io/part-of: agentops-platform

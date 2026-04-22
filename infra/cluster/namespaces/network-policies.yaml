@@ -35,10 +35,14 @@ spec:
           protocol: UDP
         - port: 5353
           protocol: TCP
-    # K8s API server — pod network CIDR for API server access
+    # K8s API server + internal services (172.30.0.0/16 is the Service CIDR).
+    # OVN-Kubernetes DNATs ClusterIP to master node IP before policy eval,
+    # so we also need the pod/node network (10.0.0.0/8) for ports 443/6443.
     - to:
         - ipBlock:
             cidr: 172.30.0.0/16
+        - ipBlock:
+            cidr: 10.0.0.0/8
       ports:
         - port: 443
           protocol: TCP
@@ -71,6 +75,14 @@ spec:
         - port: 5000
           protocol: TCP
         - port: 4318
+          protocol: TCP
+    # Intra-namespace: agents-observe (decoupled from sidecar)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: agents-observe
+      ports:
+        - port: 4981
           protocol: TCP
     # External registries (GitHub, npm) — controlled egress
     - to:
@@ -198,7 +210,13 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: agentops
-    # UI access from OpenShift ingress controller (Routes — e.g. claude-devtools)
+    # Intra-namespace: agent pods → agents-observe
+    - from:
+        - podSelector: {}
+      ports:
+        - port: 4981
+          protocol: TCP
+    # UI access from OpenShift ingress controller (Routes — e.g. claude-devtools, agents-observe)
     - from:
         - namespaceSelector:
             matchLabels:

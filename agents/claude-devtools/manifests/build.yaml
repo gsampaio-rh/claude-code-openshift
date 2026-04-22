@@ -1,0 +1,40 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: claude-devtools
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/component: devtools
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: claude-devtools:latest
+  source:
+    type: Git
+    git:
+      uri: https://github.com/matt1398/claude-devtools.git
+      ref: main
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: claude-devtools
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/component: devtools
+    app.kubernetes.io/part-of: agentops-platform

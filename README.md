@@ -87,7 +87,7 @@ cp .env.example .env
 # Or deploy individual components
 ./infra/cluster/scripts/00-preflight-check.sh
 ./inference/vllm/scripts/01-deploy-model.sh
-./agents/claude-code/scripts/01-deploy-standalone.sh
+./agents/scripts/01-deploy-standalone.sh
 
 # Deploy observability (MLflow)
 ./scripts/observability/01-deploy-observability.sh

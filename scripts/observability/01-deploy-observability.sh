@@ -51,6 +51,16 @@ echo "Deploying MLflow Route..."
 oc apply -n "$NAMESPACE" -f "$MLFLOW_MANIFESTS_DIR/route.yaml"
 echo ""
 
+echo "Patching MLflow with Route hostname..."
+ROUTE_HOST=$(oc get route mlflow-tracking -n "$NAMESPACE" -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+if [[ -n "$ROUTE_HOST" ]]; then
+  oc set env deployment/mlflow-tracking -n "$NAMESPACE" "MLFLOW_ROUTE_HOST=${ROUTE_HOST}"
+  echo "  MLFLOW_ROUTE_HOST=${ROUTE_HOST}"
+else
+  echo "  Warning: Route not found, using placeholder."
+fi
+echo ""
+
 # Create default experiment so the first agent doesn't have to
 MLFLOW_POD=$(oc get pods -n "$NAMESPACE" \
   -l "app.kubernetes.io/name=mlflow-tracking" \
@@ -103,7 +113,7 @@ try:
     eid = get_experiment_id()
     tags = {
         'platform': 'openshift',
-        'model': 'qwen25-14b',
+        'model': 'gpt-oss-20b',
         'gpu': 'NVIDIA L40S',
         'runtime': 'kata',
         'agent_namespace': 'agent-sandboxes',

@@ -17,9 +17,10 @@ echo "── Deploying standalone Deployment (with claude-devtools sidecar) ─�
 oc apply -f "$MANIFESTS_DIR/standalone-pod.yaml"
 echo ""
 
+DEVTOOLS_DIR="$(cd "$SCRIPT_DIR/../claude-devtools/manifests" && pwd)"
 echo "── Deploying DevTools Service + Route ──"
-oc apply -f "$MANIFESTS_DIR/devtools-service.yaml"
-oc apply -f "$MANIFESTS_DIR/devtools-route.yaml"
+oc apply -f "$DEVTOOLS_DIR/service.yaml"
+oc apply -f "$DEVTOOLS_DIR/route.yaml"
 echo ""
 
 echo "── Waiting for rollout ──"

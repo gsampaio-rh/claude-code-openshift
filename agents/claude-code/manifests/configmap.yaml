@@ -17,11 +17,11 @@ metadata:
     app.kubernetes.io/part-of: agentops-platform
 data:
   # vLLM implements Anthropic Messages API — no /v1 suffix needed
-  ANTHROPIC_BASE_URL: "http://qwen25-14b.inference.svc.cluster.local:8080"
+  ANTHROPIC_BASE_URL: "http://gpt-oss-20b.inference.svc.cluster.local:8080"
   # All model tiers point to the same served-model-name from vLLM
-  ANTHROPIC_DEFAULT_SONNET_MODEL: "qwen25-14b"
-  ANTHROPIC_DEFAULT_OPUS_MODEL: "qwen25-14b"
-  ANTHROPIC_DEFAULT_HAIKU_MODEL: "qwen25-14b"
+  ANTHROPIC_DEFAULT_SONNET_MODEL: "gpt-oss-20b"
+  ANTHROPIC_DEFAULT_OPUS_MODEL: "gpt-oss-20b"
+  ANTHROPIC_DEFAULT_HAIKU_MODEL: "gpt-oss-20b"
   # Required by vLLM integration (can be any value)
   ANTHROPIC_AUTH_TOKEN: "not-needed"
   # Prevents startup connections to api.anthropic.com (autoupdater, Sentry, Statsig)
@@ -30,7 +30,7 @@ data:
   CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS: "1"
   # Disables per-request hash in system prompt that defeats vLLM prefix caching
   CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
-  # Token limits tuned for Qwen 14B context window
+  # Token limits tuned for GPT-OSS-20B context window
   CLAUDE_CODE_MAX_OUTPUT_TOKENS: "8192"
   MAX_THINKING_TOKENS: "0"
   # MLflow: native Claude Code tracing (tool calls, tokens, conversations)
@@ -42,6 +42,7 @@ data:
   # OTel metrics: OTLP push to OTEL Collector (persistent) → Prometheus.
   # Uses metrics-specific endpoint to avoid hijacking MLflow's OTEL SDK.
   # Ref: https://docs.anthropic.com/en/docs/claude-code/monitoring
+  CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "1"
   CLAUDE_CODE_ENABLE_TELEMETRY: "1"
   OTEL_METRICS_EXPORTER: "otlp"
   OTEL_EXPORTER_OTLP_METRICS_PROTOCOL: "http/protobuf"
@@ -50,6 +51,15 @@ data:
   OTEL_EXPORTER_OTLP_LOGS_PROTOCOL: "http/protobuf"
   OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318/v1/logs"
   OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: "cumulative"
+  # Enable Tasks v2 (file-based task management in ~/.claude/tasks/).
+  # Without this, headless (-p) mode falls back to deprecated TodoWrite (in-memory only).
+  # Ref: src/utils/tasks.ts — isTodoV2Enabled()
+  CLAUDE_CODE_ENABLE_TASKS: "1"
+  # Permission mode for headless (-p) invocations.
+  # "dangerously-skip-permissions" — agent can read/write/execute without prompts (safe in sandboxed Kata pods)
+  # "default" — agent asks for permission on each tool use (blocks in headless mode)
+  # Ref: claude --help | grep permission
+  CLAUDE_PERMISSION_MODE: "dangerously-skip-permissions"
   # AgentOps per-trace metadata — DISABLED for PoC (single agent).
   # Re-enable with set-trace-tags.py when multi-agent requires per-trace
   # pod/node identification. See ADR-020.

@@ -2,9 +2,10 @@
 # Claude Code Agent Configuration
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-MANIFESTS_DIR="$(cd "$SCRIPT_DIR/../manifests" && pwd)"
-DOCKERFILE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+AGENTS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$AGENTS_DIR/.." && pwd)"
+MANIFESTS_DIR="$(cd "$AGENTS_DIR/claude-code/manifests" && pwd)"
+DOCKERFILE_DIR="$(cd "$AGENTS_DIR/claude-code" && pwd)"
 
 if [[ -f "$PROJECT_ROOT/.env" ]]; then
   set -a
