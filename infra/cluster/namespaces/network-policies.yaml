@@ -35,10 +35,14 @@ spec:
           protocol: UDP
         - port: 5353
           protocol: TCP
-    # K8s API server — pod network CIDR for API server access
+    # K8s API server + internal services (172.30.0.0/16 is the Service CIDR).
+    # OVN-Kubernetes DNATs ClusterIP to master node IP before policy eval,
+    # so we also need the pod/node network (10.0.0.0/8) for ports 443/6443.
     - to:
         - ipBlock:
             cidr: 172.30.0.0/16
+        - ipBlock:
+            cidr: 10.0.0.0/8
       ports:
         - port: 443
           protocol: TCP

@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slack-bridge
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: slack-bridge
+    app.kubernetes.io/component: slack-bridge
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: slack-bridge
+      app.kubernetes.io/component: slack-bridge
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: slack-bridge
+        app.kubernetes.io/component: slack-bridge
+        app.kubernetes.io/part-of: agentops-platform
+    spec:
+      serviceAccountName: slack-bridge
+      containers:
+        - name: slack-bridge
+          image: image-registry.openshift-image-registry.svc:5000/agent-sandboxes/slack-bridge:latest
+          envFrom:
+            - secretRef:
+                name: claude-slack-tokens
+          env:
+            - name: AGENT_NAMESPACE
+              value: "agent-sandboxes"
+            - name: AGENT_POD_LABEL
+              value: "app.kubernetes.io/component=agent-standalone"
+            - name: AGENT_CONTAINER
+              value: "claude-code"
+            - name: MAX_CONCURRENT_EXECS
+              value: "2"
+            - name: CLAUDE_MAX_TURNS
+              value: "30"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import os; assert os.path.exists('/proc/1/status')"]
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+      restartPolicy: Always

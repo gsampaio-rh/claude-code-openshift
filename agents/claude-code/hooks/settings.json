@@ -2,14 +2,15 @@
   "hooks": {
     "PreToolUse": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
     "PostToolUse": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
-    "PostToolUseFailure": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
+    "PostToolUseFailure": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }, { "type": "command", "command": "bash /opt/app-root/hooks/send_slack.sh" }] }],
     "PermissionRequest": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
     "Notification": [{ "hooks": [{ "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }] }],
     "Stop": [
       {
         "hooks": [
           { "type": "command", "command": "mlflow autolog claude stop-hook" },
-          { "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" }
+          { "type": "command", "command": "bash /opt/app-root/hooks/send_event.sh" },
+          { "type": "command", "command": "bash /opt/app-root/hooks/send_slack.sh" }
         ]
       }
     ],

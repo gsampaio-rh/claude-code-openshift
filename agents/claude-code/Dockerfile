@@ -10,6 +10,9 @@ RUN git clone --depth 1 https://github.com/gsampaio-rh/rules-skills.git /opt/app
 RUN python3.12 -m pip install --user --no-cache-dir 'mlflow>=3.10' 'opentelemetry-exporter-otlp-proto-http'
 ENV PATH="/opt/app-root/src/.local/bin:$PATH"
 
+COPY --chown=1001:0 mcp/ /opt/app-root/mcp/
+RUN cd /opt/app-root/mcp && npm install --omit=dev
+
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY claude-logged /usr/local/bin/claude-logged
 COPY hooks/ /opt/app-root/hooks/

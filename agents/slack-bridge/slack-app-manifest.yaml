@@ -1,0 +1,49 @@
+# Slack App Manifest for Claude Code Agent
+#
+# How to use:
+#   1. Go to https://api.slack.com/apps
+#   2. Click "Create New App"
+#   3. Choose "From an app manifest"
+#   4. Select your workspace
+#   5. Switch to YAML tab and paste this file's contents
+#   6. Click "Create"
+#   7. After creation, go to Settings → Socket Mode → Enable Socket Mode
+#   8. Generate an App-Level Token (name: "socket-mode", scope: connections:write)
+#   9. Copy the xapp-... token (SLACK_APP_TOKEN)
+#  10. Go to OAuth & Permissions → Install to Workspace
+#  11. Copy the xoxb-... token (SLACK_BOT_TOKEN)
+
+display_information:
+  name: Claude Code Agent
+  description: Bidirectional bridge between Slack and a Claude Code agent running on OpenShift.
+  background_color: "#D97757"
+
+features:
+  bot_user:
+    display_name: Claude Code Agent
+    always_online: true
+  app_home:
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - app_mentions:read
+      - im:history
+      - im:read
+      - im:write
+      - channels:history
+      - channels:read
+
+settings:
+  event_subscriptions:
+    bot_events:
+      - app_mention
+      - message.im
+  interactivity:
+    is_enabled: false
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false

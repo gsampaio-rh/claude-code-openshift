@@ -25,17 +25,17 @@ spec:
         - name: mlflow
           image: ghcr.io/mlflow/mlflow:v3.10.1
           command: ["mlflow"]
-          # CLUSTER-SPECIFIC: update --allowed-hosts and --cors-allowed-origins
-          # with your cluster's Route hostname (oc get route mlflow-tracking -n observability).
           # MLflow v3 does exact match on Host header — list every variant.
+          # The Route hostname is injected at deploy time by 01-deploy-observability.sh
+          # via MLFLOW_ROUTE_HOST env var (see below).
           args:
             - server
             - --host=0.0.0.0
             - --port=5000
             - --backend-store-uri=sqlite:///mnt/mlflow/mlflow.db
             - --default-artifact-root=/mnt/mlflow/artifacts
-            - --allowed-hosts=localhost,localhost:5000,mlflow-tracking,mlflow-tracking:5000,mlflow-tracking.observability,mlflow-tracking.observability:5000,mlflow-tracking.observability.svc.cluster.local,mlflow-tracking.observability.svc.cluster.local:5000,mlflow-tracking-observability.apps.ocp.gdn7x.sandbox3313.opentlc.com
-            - --cors-allowed-origins=https://mlflow-tracking-observability.apps.ocp.gdn7x.sandbox3313.opentlc.com
+            - --allowed-hosts=localhost,localhost:5000,mlflow-tracking,mlflow-tracking:5000,mlflow-tracking.observability,mlflow-tracking.observability:5000,mlflow-tracking.observability.svc.cluster.local,mlflow-tracking.observability.svc.cluster.local:5000,$(MLFLOW_ROUTE_HOST)
+            - --cors-allowed-origins=https://$(MLFLOW_ROUTE_HOST)
           ports:
             - containerPort: 5000
               protocol: TCP
@@ -43,6 +43,8 @@ spec:
           env:
             - name: HOME
               value: /mnt/mlflow
+            - name: MLFLOW_ROUTE_HOST
+              value: "mlflow-tracking-observability.apps.placeholder.example.com"
           resources:
             requests:
               cpu: "250m"

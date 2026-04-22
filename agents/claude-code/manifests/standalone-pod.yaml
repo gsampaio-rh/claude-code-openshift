@@ -39,6 +39,9 @@ spec:
           envFrom:
             - configMapRef:
                 name: claude-code-config
+            - secretRef:
+                name: claude-slack-tokens
+                optional: true
           env:
             - name: ANTHROPIC_API_KEY
               value: "not-needed"

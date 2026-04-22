@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: slack-bridge
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: slack-bridge
+    app.kubernetes.io/part-of: agentops-platform
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: slack-bridge
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: slack-bridge
+    app.kubernetes.io/part-of: agentops-platform
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: slack-bridge
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: slack-bridge
+    app.kubernetes.io/part-of: agentops-platform
+subjects:
+  - kind: ServiceAccount
+    name: slack-bridge
+    namespace: agent-sandboxes
+roleRef:
+  kind: Role
+  name: slack-bridge
+  apiGroup: rbac.authorization.k8s.io

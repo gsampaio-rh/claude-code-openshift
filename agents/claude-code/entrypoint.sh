@@ -30,6 +30,23 @@ with open('$HOME/.claude/settings.json', 'w') as f: json.dump(base, f, indent=2)
   fi
 fi
 
+# ── Slack MCP server setup (agent → Slack) ───────────────────
+if [[ -n "${SLACK_BOT_TOKEN:-}" ]]; then
+  mkdir -p "$HOME/.claude"
+  python3.12 -c "
+import json, os
+mcp_path = os.path.join(os.environ['HOME'], '.claude', '.mcp.json')
+mcp = {}
+if os.path.exists(mcp_path):
+    with open(mcp_path) as f: mcp = json.load(f)
+mcp.setdefault('mcpServers', {})['slack-notify'] = {
+    'command': 'node',
+    'args': ['/opt/app-root/mcp/slack-notify.mjs']
+}
+with open(mcp_path, 'w') as f: json.dump(mcp, f, indent=2)
+"
+fi
+
 # ── MLflow tracing setup ─────────────────────────────────────
 MLFLOW_TRACING="disabled"
 if [[ -n "${MLFLOW_TRACKING_URI:-}" ]] && command -v mlflow &>/dev/null; then
@@ -59,6 +76,7 @@ echo "  MLflow:     $MLFLOW_TRACING"
 echo "  Rules:      $(test -d "$HOME/.claude/rules" && echo "enabled → $(ls "$HOME/.claude/rules/" | wc -l | tr -d ' ') rules" || echo 'disabled')"
 echo "  Skills:     $(test -d "$HOME/.claude/skills" && echo "enabled → $(ls "$HOME/.claude/skills/" | wc -l | tr -d ' ') skills" || echo 'disabled')"
 echo "  Hooks:      $(test -f "$HOME/.claude/settings.json" && echo 'enabled → agents-observe' || echo 'disabled')"
+echo "  Slack MCP:  $(test -f "$HOME/.claude/.mcp.json" && echo 'enabled → slack-notify' || echo 'disabled')"
 echo "  Log Dir:    $LOG_DIR"
 echo "  Started:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo ""

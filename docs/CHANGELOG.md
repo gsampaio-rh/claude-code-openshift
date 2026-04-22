@@ -164,6 +164,9 @@ Validated and adopted UI/observability sidecars (claude-devtools, claude-task-vi
 - **Headless permissions** configurable via `CLAUDE_PERMISSION_MODE` env var — no image rebuild needed
 - **Development workflow** codified in `.claude/rules/` and `.claude/skills/` (cloned from [rules-skills](https://github.com/gsampaio-rh/rules-skills))
 - **gpt-oss-20b** deployed and validated on L40S GPU
+- **Slack integration** — bidirectional communication with Claude Code agent via `slack-bridge` (Socket Mode, `oc exec`), agent-initiated notifications via MCP tools (`slack_send_message`, `slack_reply_thread`) and hooks (`send_slack.sh`)
+- **NetworkPolicy fix** for OVN-Kubernetes DNAT — `ipBlock` rules for K8s API don't work post-DNAT; added pod/node network `10.0.0.0/8` to egress rules
+- **MachineSet templates** templatized with `envsubst` placeholders and auto-discovery script (`create-machineset.sh`)
 
 ### Multi-Agent Task Management — Evaluated & Discarded
 
@@ -189,6 +192,7 @@ Validated and adopted UI/observability sidecars (claude-devtools, claude-task-vi
 | [ADR-025](adrs/025-structured-claude-rules-over-task-management-tools.md) | Structured `.claude` rules over third-party task management tools |
 | [ADR-026](adrs/026-enable-tasks-v2-headless.md) | Enable Tasks v2 in headless mode via `CLAUDE_CODE_ENABLE_TASKS=1` |
 | [ADR-027](adrs/027-claude-task-viewer-sidecar.md) | claude-task-viewer as sidecar for task observability |
+| [ADR-028](adrs/028-slack-bridge-integration.md) | Bidirectional Slack integration via slack-bridge |
 
 ### Notable Problems Solved
 
@@ -198,6 +202,10 @@ Validated and adopted UI/observability sidecars (claude-devtools, claude-task-vi
 - Backlog.md `backlog init` requires git repo with user config — fragile in ephemeral containers
 - Context window overflow (32K) with verbose MCP tool schemas — shorter prompts or fewer tools needed
 - gpt-oss-20b does not spontaneously create tasks/workflow docs — requires explicit instruction for complex workflows
+- OVN-Kubernetes DNAT breaks `ipBlock` egress for K8s API — ClusterIP 172.30.0.1 gets rewritten to master node IP (10.x.x.x) before policy evaluation; added `10.0.0.0/8` to API egress rule
+- `kubernetes_asyncio` exec requires `WsApiClient` for WebSocket upgrade — standard `CoreV1Api` returns `ClientResponse` instead of iterable
+- Slack bridge RBAC needs `get` + `create` on `pods/exec` — `connect_get_namespaced_pod_exec` uses GET, not POST
+- Dockerfile `COPY` creates root-owned dirs in OpenShift — `--chown=1001:0` required for npm install to work
 
 ---
 

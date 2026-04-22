@@ -113,7 +113,38 @@ Read-only Kanban board for Tasks v2. Watches `~/.claude/tasks/` via chokidar and
 - `agents/claude-task-viewer/manifests/service.yaml` — Service (selector: `claude-code` pod)
 - `agents/claude-task-viewer/manifests/route.yaml` — Route (edge TLS)
 
-### 4. agents-observe (standalone deployment)
+### 4. slack-bridge (standalone deployment)
+
+Bidirectional Slack adapter. Receives Slack messages via Socket Mode (outbound WebSocket) and invokes `claude -p` in the agent pod via Kubernetes exec API. Posts responses back to Slack.
+
+| Aspect | Detail |
+|--------|--------|
+| **Why standalone** | Modular — own image, lifecycle, RBAC. No filesystem dependency on the agent. Uses k8s exec to invoke `claude -p` ([ADR-028](adrs/028-slack-bridge-integration.md)). |
+| **Stack** | Python 3.12 + slack-bolt (Socket Mode) + kubernetes-asyncio |
+| **Session mapping** | Hybrid — threads use `--resume <session_id>`, direct channel messages are one-shot |
+| **RBAC** | ServiceAccount `slack-bridge` with `pods/exec` + `pods/get` in `agent-sandboxes` |
+
+**Manifests:**
+- `agents/slack-bridge/Dockerfile` — Image: UBI9 + Python 3.12 + slack-bolt + kubernetes-asyncio
+- `agents/slack-bridge/manifests/build.yaml` — BuildConfig + ImageStream
+- `agents/slack-bridge/manifests/deployment.yaml` — Deployment
+- `agents/slack-bridge/manifests/rbac.yaml` — ServiceAccount + Role + RoleBinding
+- `agents/slack-bridge/manifests/secret.yaml` — Secret template (SLACK_BOT_TOKEN, SLACK_APP_TOKEN)
+
+### 5. slack-notify MCP server (in agent container)
+
+Local MCP server (stdio transport) that gives the agent tools to send messages to Slack on demand.
+
+| Aspect | Detail |
+|--------|--------|
+| **Tools** | `slack_send_message(channel, text)`, `slack_reply_thread(channel, thread_ts, text)` |
+| **Transport** | stdio (launched by Claude Code as needed) |
+| **Config** | `$HOME/.claude/.mcp.json` written by `entrypoint.sh` when `SLACK_BOT_TOKEN` is set |
+| **Requires** | `SLACK_BOT_TOKEN` env var from `claude-slack-tokens` Secret |
+
+**Key file:** `agents/claude-code/mcp/slack-notify.mjs`
+
+### 6. agents-observe (standalone deployment)
 
 Real-time hook event monitoring dashboard. Receives structured events from Claude Code hooks via HTTP POST and displays them in a React dashboard with WebSocket live updates.
 
@@ -243,8 +274,12 @@ agents/
 │   ├── claude-logged            # Wrapper: claude -p with permission mode from env var
 │   ├── set-trace-tags.py       # Per-trace metadata enrichment (disabled for PoC)
 │   ├── hooks/
-│   │   ├── settings.json       # Claude Code hook config: 12 events → send_event.sh
-│   │   └── send_event.sh       # Hook script: stdin JSON → HTTP POST to agents-observe
+│   │   ├── settings.json       # Claude Code hook config: 12 events → send_event.sh + send_slack.sh
+│   │   ├── send_event.sh       # Hook script: stdin JSON → HTTP POST to agents-observe
+│   │   └── send_slack.sh       # Hook script: Slack notifications on Stop/errors
+│   ├── mcp/
+│   │   ├── package.json        # MCP SDK dependency
+│   │   └── slack-notify.mjs    # Local MCP server (stdio): slack_send_message, slack_reply_thread
 │   ├── manifests/
 │   │   ├── standalone-pod.yaml # Deployment: claude-code + claude-devtools + claude-task-viewer
 │   │   └── configmap.yaml      # Environment config (inference, MLflow, OTel, model, tasks, permissions)
@@ -259,6 +294,16 @@ agents/
 │       ├── build.yaml          # BuildConfig + ImageStream
 │       ├── service.yaml        # Service (selector: claude-code pod)
 │       └── route.yaml          # Route (edge TLS)
+├── slack-bridge/
+│   ├── Dockerfile              # Image: UBI9 + Python 3.12 + slack-bolt + kubernetes-asyncio
+│   ├── src/
+│   │   └── bridge.py           # Socket Mode handler, k8s exec, session mapping
+│   ├── requirements.txt        # slack-bolt, slack-sdk, kubernetes-asyncio
+│   └── manifests/
+│       ├── build.yaml          # BuildConfig + ImageStream
+│       ├── deployment.yaml     # Deployment
+│       ├── rbac.yaml           # ServiceAccount + Role + RoleBinding (pods/exec)
+│       └── secret.yaml         # Secret template (SLACK_BOT_TOKEN, SLACK_APP_TOKEN)
 ├── agents-observe/
 │   └── manifests/
 │       ├── build.yaml          # BuildConfig + ImageStream
@@ -289,7 +334,10 @@ oc start-build claude-task-viewer --from-dir=agents/claude-task-viewer -n agent-
 # 4. Build agents-observe image
 oc start-build agents-observe -n agent-sandboxes
 
-# 5. Apply manifests
+# 5. Build slack-bridge image
+oc start-build slack-bridge --from-dir=agents/slack-bridge -n agent-sandboxes
+
+# 6. Apply manifests
 oc apply -f agents/claude-code/manifests/configmap.yaml
 oc apply -f agents/claude-code/manifests/standalone-pod.yaml
 oc apply -f agents/claude-devtools/manifests/service.yaml
@@ -297,8 +345,10 @@ oc apply -f agents/claude-devtools/manifests/route.yaml
 oc apply -f agents/claude-task-viewer/manifests/service.yaml
 oc apply -f agents/claude-task-viewer/manifests/route.yaml
 oc apply -f agents/agents-observe/manifests/deployment.yaml
+oc apply -f agents/slack-bridge/manifests/rbac.yaml
+oc apply -f agents/slack-bridge/manifests/deployment.yaml
 
-# 5. Use the agent
+# 7. Use the agent
 oc exec -it deploy/claude-code-standalone -- claude                  # interactive
 oc exec deploy/claude-code-standalone -- claude-logged "prompt"      # headless
 ```
@@ -315,6 +365,9 @@ oc exec deploy/claude-code-standalone -- claude-logged "prompt"      # headless
 | Synchronous hook execution | Background subshell killed before HTTP completes | [ADR-024](adrs/024-decouple-agents-observe-from-sidecar.md) |
 | Tasks v2 via env var | Headless mode defaults to in-memory TodoWrite; `CLAUDE_CODE_ENABLE_TASKS=1` enables file-based tasks | [ADR-026](adrs/026-enable-tasks-v2-headless.md) |
 | `.claude` rules over task mgmt tools | Zero-infra workflow enforcement via rules-skills repo cloned at build time | [ADR-025](adrs/025-structured-claude-rules-over-task-management-tools.md) |
+| Standalone for slack-bridge | Modular — own image, RBAC, lifecycle. Uses k8s exec to invoke `claude -p` | [ADR-028](adrs/028-slack-bridge-integration.md) |
+| Local MCP for Slack | Official Slack MCP requires browser OAuth; local stdio server uses Bot Token | [ADR-028](adrs/028-slack-bridge-integration.md) |
+| Socket Mode over webhooks | No public ingress needed — outbound WebSocket works behind firewalls | [ADR-028](adrs/028-slack-bridge-integration.md) |
 | Kata runtime class | Hardware VM isolation for untrusted agent code | [ADR-017](adrs/017-kata-containers-for-agent-isolation.md) |
 | vLLM as inference backend | Anthropic Messages API compatibility, prefix caching | — |
 | MLflow for traces | Native Claude Code integration, no custom instrumentation | [ADR-019](adrs/019-observability-otel-mlflow-grafana.md) |
