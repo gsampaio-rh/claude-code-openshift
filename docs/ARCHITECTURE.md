@@ -80,6 +80,8 @@ A plataforma AgentOps roda AI coding agents (Claude Code) no OpenShift com isola
 
 Acesso:
   Developer ──oc exec──→ Claude Code standalone pod
+  Developer ──Browser──→ Web Terminal (ttyd :7681) ──→ Claude Code interactive
+  Developer ──Slack────→ slack-bridge ──oc exec──→ Claude Code one-shot
   Developer ──Browser──→ Coder UI ──→ Coder workspace (Kata VM)
 ```
 
@@ -91,6 +93,7 @@ Claude Code pode rodar em dois modos: **standalone** (pod direto, headless/inter
 flowchart TB
     subgraph devs [Desenvolvedores]
         DevBrowser[Browser - Coder UI]
+        DevWebTerm["Browser - Web Terminal (ttyd)"]
         DevTerminal[Terminal - claude CLI]
         DevExec["oc exec / port-forward"]
     end
@@ -167,6 +170,7 @@ flowchart TB
     end
 
     DevBrowser --> CoderCP
+    DevWebTerm -->|"HTTPS Route :7681"| StandalonePod
     DevTerminal -->|SSH| KataVM1
     DevExec -->|"oc exec"| StandalonePod
 
@@ -202,14 +206,14 @@ flowchart TB
 
 | Modo | Disponivel | Surface | Use case |
 |---|---|---|---|
-| **Standalone** | Fase 1 | `oc exec`, headless API, port-forward | Validacao core, automacao, CI/CD |
+| **Standalone** | Fase 1 | Web Terminal (ttyd), `oc exec`, Slack bridge, headless API | Validacao core, demos, automacao, CI/CD |
 | **CDE-embedded** | Fase 3 | Coder workspace (VS Code / terminal) | Dev interativo |
 
 **Standalone deploy:**
-1. Deployment com N replicas (imagem custom UBI `registry.access.redhat.com/ubi9/nodejs-22` + Claude Code CLI)
+1. Deployment com N replicas (imagem custom UBI `registry.access.redhat.com/ubi9/nodejs-22` + Claude Code CLI + ttyd)
 2. Cada replica eh um agente independente com seu proprio `session_id` e log stream
 3. `ANTHROPIC_BASE_URL` aponta direto pro vLLM (Fase 1) ou Guardrails (Fase 2+)
-4. Dev interage via `oc exec -it <pod>` ou headless API
+4. Dev interage via **Web Terminal** (browser → ttyd :7681), `oc exec -it <pod>`, Slack, ou headless API
 5. Escala horizontal: `oc scale deployment/claude-code-standalone --replicas=N`
 
 **Multi-agente standalone:**
@@ -555,6 +559,7 @@ O vLLM expoe 97 metricas Prometheus nativas no endpoint `/metrics` (porta 8080).
 **Routes (external access):**
 - MLflow UI: `https://mlflow-tracking-observability.apps.<cluster>/`
 - Grafana: `https://grafana-observability.apps.<cluster>/`
+- Web Terminal: `https://claude-web-terminal-agent-sandboxes.apps.<cluster>/` (basic auth via Secret)
 
 ### 3.7 CI/CD Layer (Tekton + Garak)
 

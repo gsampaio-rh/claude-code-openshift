@@ -159,12 +159,13 @@ Validated and adopted UI/observability sidecars (claude-devtools, claude-task-vi
 
 - **claude-devtools** adopted as sidecar — session transcript viewer, sharing `claude-sessions` volume
 - **agents-observe** adopted as standalone Deployment — hook-based observability dashboard
-- **claude-task-viewer** adopted as sidecar — read-only Kanban board for Tasks v2 files (`~/.claude/tasks/`), port 3457
+- **claude-task-viewer** evaluated as sidecar — read-only Kanban board for Tasks v2 files. **Disabled** — unnecessary overhead for current single-agent PoC; re-enable when multi-agent task coordination is needed (ADR-027)
 - **Tasks v2** enabled in headless mode via `CLAUDE_CODE_ENABLE_TASKS=1` — agent creates persistent task JSON files
 - **Headless permissions** configurable via `CLAUDE_PERMISSION_MODE` env var — no image rebuild needed
 - **Development workflow** codified in `.claude/rules/` and `.claude/skills/` (cloned from [rules-skills](https://github.com/gsampaio-rh/rules-skills))
 - **gpt-oss-20b** deployed and validated on L40S GPU
 - **Slack integration** — bidirectional communication with Claude Code agent via `slack-bridge` (Socket Mode, `oc exec`), agent-initiated notifications via MCP tools (`slack_send_message`, `slack_reply_thread`) and hooks (`send_slack.sh`)
+- **Web terminal (ttyd)** — browser-based interactive Claude Code session via ttyd on port 7681, accessible via OpenShift Route with edge TLS and optional basic auth. No CLI or VPN required — full streaming, tool approvals, and session continuity in the browser
 - **NetworkPolicy fix** for OVN-Kubernetes DNAT — `ipBlock` rules for K8s API don't work post-DNAT; added pod/node network `10.0.0.0/8` to egress rules
 - **MachineSet templates** templatized with `envsubst` placeholders and auto-discovery script (`create-machineset.sh`)
 
@@ -193,6 +194,7 @@ Validated and adopted UI/observability sidecars (claude-devtools, claude-task-vi
 | [ADR-026](adrs/026-enable-tasks-v2-headless.md) | Enable Tasks v2 in headless mode via `CLAUDE_CODE_ENABLE_TASKS=1` |
 | [ADR-027](adrs/027-claude-task-viewer-sidecar.md) | claude-task-viewer as sidecar for task observability |
 | [ADR-028](adrs/028-slack-bridge-integration.md) | Bidirectional Slack integration via slack-bridge |
+| [ADR-029](adrs/029-web-terminal-ttyd.md) | Web terminal via ttyd for interactive agent access |
 
 ### Notable Problems Solved
 

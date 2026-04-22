@@ -77,6 +77,7 @@ echo "  Rules:      $(test -d "$HOME/.claude/rules" && echo "enabled → $(ls "$
 echo "  Skills:     $(test -d "$HOME/.claude/skills" && echo "enabled → $(ls "$HOME/.claude/skills/" | wc -l | tr -d ' ') skills" || echo 'disabled')"
 echo "  Hooks:      $(test -f "$HOME/.claude/settings.json" && echo 'enabled → agents-observe' || echo 'disabled')"
 echo "  Slack MCP:  $(test -f "$HOME/.claude/.mcp.json" && echo 'enabled → slack-notify' || echo 'disabled')"
+echo "  Web Term:   $(command -v ttyd &>/dev/null && echo 'enabled → :7681' || echo 'disabled')"
 echo "  Log Dir:    $LOG_DIR"
 echo "  Started:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo ""
@@ -91,5 +92,14 @@ echo "------------------------------------------------------------"
 tail -F "$LOG_FILE" &
 TAIL_PID=$!
 trap "kill $TAIL_PID 2>/dev/null" EXIT
+
+# ── Web terminal (ttyd) ──────────────────────────────────────
+if command -v ttyd &>/dev/null; then
+  TTYD_ARGS=(-p 7681 --writable)
+  if [[ -n "${TTYD_CREDENTIAL:-}" ]]; then
+    TTYD_ARGS+=(--credential "$TTYD_CREDENTIAL")
+  fi
+  ttyd "${TTYD_ARGS[@]}" bash &
+fi
 
 exec sleep infinity

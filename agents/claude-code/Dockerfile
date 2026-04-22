@@ -2,6 +2,8 @@ FROM registry.access.redhat.com/ubi9/nodejs-22
 
 USER 0
 RUN dnf install -y git python3.12 python3.12-pip && dnf clean all
+RUN curl -fsSL -o /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 && \
+    chmod +x /usr/local/bin/ttyd
 
 USER 1001
 

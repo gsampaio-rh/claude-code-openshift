@@ -36,6 +36,10 @@ spec:
         - name: claude-code
           # Built via: oc start-build claude-code-agent --from-dir=agents/claude-code -n agent-sandboxes
           image: image-registry.openshift-image-registry.svc:5000/agent-sandboxes/claude-code-agent:latest
+          ports:
+            - containerPort: 7681
+              name: web-terminal
+              protocol: TCP
           envFrom:
             - configMapRef:
                 name: claude-code-config
@@ -45,6 +49,12 @@ spec:
           env:
             - name: ANTHROPIC_API_KEY
               value: "not-needed"
+            - name: TTYD_CREDENTIAL
+              valueFrom:
+                secretKeyRef:
+                  name: claude-web-terminal
+                  key: TTYD_CREDENTIAL
+                  optional: true
             # Kubernetes Downward API — DISABLED for PoC (single agent).
             # Re-enable with set-trace-tags.py for per-trace pod/node
             # identification in multi-agent scenarios. See ADR-020.
@@ -141,47 +151,9 @@ spec:
               type: RuntimeDefault
             capabilities:
               drop: ["ALL"]
-        - name: claude-task-viewer
-          image: image-registry.openshift-image-registry.svc:5000/agent-sandboxes/claude-task-viewer:latest
-          ports:
-            - containerPort: 3457
-              name: task-viewer-ui
-              protocol: TCP
-          env:
-            - name: PORT
-              value: "3457"
-            - name: HOST
-              value: "0.0.0.0"
-          volumeMounts:
-            - name: claude-sessions
-              mountPath: /data/.claude
-              readOnly: true
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 3457
-            initialDelaySeconds: 10
-            periodSeconds: 30
-            timeoutSeconds: 5
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 3457
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 3
-          securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            seccompProfile:
-              type: RuntimeDefault
-            capabilities:
-              drop: ["ALL"]
+        # claude-task-viewer sidecar — DISABLED.
+        # Kanban board for Tasks v2 files (~/.claude/tasks/). Re-enable when
+        # multi-agent task coordination is needed. See ADR-027 for context.
+        # Image: image-registry.openshift-image-registry.svc:5000/agent-sandboxes/claude-task-viewer:latest
+        # Port: 3457, volume: claude-sessions → /data/.claude (readOnly)
       restartPolicy: Always

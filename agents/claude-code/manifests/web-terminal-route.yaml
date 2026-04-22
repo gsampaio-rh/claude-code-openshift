@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: claude-web-terminal
+  namespace: agent-sandboxes
+  labels:
+    app.kubernetes.io/name: claude-code
+    app.kubernetes.io/component: web-terminal
+    app.kubernetes.io/part-of: agentops-platform
+spec:
+  to:
+    kind: Service
+    name: claude-web-terminal
+    weight: 100
+  port:
+    targetPort: web-terminal
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
