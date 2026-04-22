@@ -164,7 +164,7 @@ Validated and adopted UI/observability sidecars (claude-devtools, claude-task-vi
 - **Headless permissions** configurable via `CLAUDE_PERMISSION_MODE` env var — no image rebuild needed
 - **Development workflow** codified in `.claude/rules/` and `.claude/skills/` (cloned from [rules-skills](https://github.com/gsampaio-rh/rules-skills))
 - **gpt-oss-20b** deployed and validated on L40S GPU
-- **Slack integration** — bidirectional communication with Claude Code agent via `slack-bridge` (Socket Mode, `oc exec`), agent-initiated notifications via MCP tools (`slack_send_message`, `slack_reply_thread`) and hooks (`send_slack.sh`)
+- **Slack integration** — bidirectional communication with Claude Code agent via `slack-bridge` (Socket Mode, `oc exec`), agent-initiated notifications via MCP tools (`slack_send_message`, `slack_reply_thread`) and hooks (`send_slack.sh`). **Disabled** — web terminal (ttyd) provides a superior interactive experience; slack-bridge remains available for async/mobile use cases (set `replicas: 1` to re-enable)
 - **Web terminal (ttyd)** — browser-based interactive Claude Code session via ttyd on port 7681, accessible via OpenShift Route with edge TLS and optional basic auth. No CLI or VPN required — full streaming, tool approvals, and session continuity in the browser
 - **NetworkPolicy fix** for OVN-Kubernetes DNAT — `ipBlock` rules for K8s API don't work post-DNAT; added pod/node network `10.0.0.0/8` to egress rules
 - **MachineSet templates** templatized with `envsubst` placeholders and auto-discovery script (`create-machineset.sh`)

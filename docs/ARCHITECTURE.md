@@ -81,7 +81,7 @@ A plataforma AgentOps roda AI coding agents (Claude Code) no OpenShift com isola
 Acesso:
   Developer ──oc exec──→ Claude Code standalone pod
   Developer ──Browser──→ Web Terminal (ttyd :7681) ──→ Claude Code interactive
-  Developer ──Slack────→ slack-bridge ──oc exec──→ Claude Code one-shot
+  Developer ──Slack────→ slack-bridge ──oc exec──→ Claude Code one-shot  (disabled, replicas=0)
   Developer ──Browser──→ Coder UI ──→ Coder workspace (Kata VM)
 ```
 

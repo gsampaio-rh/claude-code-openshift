@@ -8,7 +8,9 @@ metadata:
     app.kubernetes.io/component: slack-bridge
     app.kubernetes.io/part-of: agentops-platform
 spec:
-  replicas: 1
+  # DISABLED: Web terminal (ttyd) provides a better interactive experience.
+  # Slack bridge remains useful for async/mobile use cases — set replicas: 1 to re-enable.
+  replicas: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: slack-bridge
