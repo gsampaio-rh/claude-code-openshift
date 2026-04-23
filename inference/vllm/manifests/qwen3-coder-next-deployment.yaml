@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: gpt-oss-20b-model-cache
+  name: qwen3-coder-next-model-cache
   namespace: inference
   labels:
-    app.kubernetes.io/name: gpt-oss-20b
+    app.kubernetes.io/name: qwen3-coder-next
     app.kubernetes.io/component: model-serving
     app.kubernetes.io/part-of: agentops-platform
 spec:
@@ -13,28 +13,30 @@ spec:
   storageClassName: gp3-csi
   resources:
     requests:
-      storage: 30Gi
+      storage: 50Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: gpt-oss-20b
+  name: qwen3-coder-next
   namespace: inference
   labels:
-    app.kubernetes.io/name: gpt-oss-20b
+    app.kubernetes.io/name: qwen3-coder-next
     app.kubernetes.io/component: model-serving
     app.kubernetes.io/part-of: agentops-platform
 spec:
-  replicas: 1
+  # DISABLED: OOMs on single L40S 48GB — 80B MoE weights (~48GB) don't leave room for KV cache.
+  # Requires 2x L40S with tensor parallelism. See docs/adrs/030-context-window-expansion.md.
+  replicas: 0
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app.kubernetes.io/name: gpt-oss-20b
+      app.kubernetes.io/name: qwen3-coder-next
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: gpt-oss-20b
+        app.kubernetes.io/name: qwen3-coder-next
         app.kubernetes.io/component: model-serving
         app.kubernetes.io/part-of: agentops-platform
     spec:
@@ -50,13 +52,14 @@ spec:
           image: vllm/vllm-openai:latest
           args:
             - --port=8080
-            - --model=openai/gpt-oss-20b
-            - --served-model-name=gpt-oss-20b
-            - --max-model-len=65536
-            - --tool-call-parser=openai
+            - --model=bullpoint/Qwen3-Coder-Next-AWQ-4bit
+            - --served-model-name=qwen3-coder-next
+            - --tool-call-parser=qwen3_coder
             - --enable-auto-tool-choice
             - --enable-chunked-prefill
-            - --gpu-memory-utilization=0.90
+            - --enable-prefix-caching
+            - --max-model-len=131072
+            - --gpu-memory-utilization=0.92
             - --download-dir=/mnt/models
           ports:
             - containerPort: 8080
@@ -102,7 +105,7 @@ spec:
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
-            failureThreshold: 90
+            failureThreshold: 120
             timeoutSeconds: 5
           readinessProbe:
             httpGet:
@@ -119,22 +122,22 @@ spec:
       volumes:
         - name: model-cache
           persistentVolumeClaim:
-            claimName: gpt-oss-20b-model-cache
+            claimName: qwen3-coder-next-model-cache
         - name: tmp
           emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: gpt-oss-20b
+  name: qwen3-coder-next
   namespace: inference
   labels:
-    app.kubernetes.io/name: gpt-oss-20b
+    app.kubernetes.io/name: qwen3-coder-next
     app.kubernetes.io/component: model-serving
     app.kubernetes.io/part-of: agentops-platform
 spec:
   selector:
-    app.kubernetes.io/name: gpt-oss-20b
+    app.kubernetes.io/name: qwen3-coder-next
   ports:
     - port: 8080
       targetPort: 8080

@@ -20,7 +20,7 @@ A plataforma AgentOps roda AI coding agents (Claude Code) no OpenShift com isola
 │  │  │  ┌─ Deployment: qwen25-14b ──────────────────────────────────┐  │   │  │
 │  │  │  │  vLLM v0.19.0 · Qwen 2.5 14B FP8                        │  │   │  │
 │  │  │  │  /v1/messages (Anthropic) · /v1/chat/completions (OpenAI) │  │   │  │
-│  │  │  │  max_model_len=32768 · gpu-mem-util=0.90                  │  │   │  │
+│  │  │  │  max_model_len=65536 · gpu-mem-util=0.90                  │  │   │  │
 │  │  │  │  PVC 30Gi (model cache)                                   │  │   │  │
 │  │  │  └───────────────────────────────────────────────────────────┘  │   │  │
 │  │  │                                                                 │   │  │
@@ -256,11 +256,11 @@ data:
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
   CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS: "1"
   CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
-  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "8192"
+  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "16384"
   MAX_THINKING_TOKENS: "0"
 ```
 
-> `CLAUDE_CODE_MAX_OUTPUT_TOKENS=8192`: system prompt consome ~16K tokens; 16K + 16384 = 32769 — **1 token acima** do context de 32768. Com 8192: 16K + 8192 = ~24K, seguro. Ver ADR-017.
+> `CLAUDE_CODE_MAX_OUTPUT_TOKENS=16384`: system prompt consome ~16K tokens; 16K + 16384 = ~32K, seguro no context de 65K (`--max-model-len=65536`). Ver ADR-030.
 
 > Ver [ADR-008](../adrs/008-claude-code-standalone-deploy.md) para o racional desta decisao.
 
@@ -388,7 +388,7 @@ sequenceDiagram
 
 | Parametro | Valor | Racional |
 |---|---|---|
-| `--max-model-len` | `32768` | Maximo nativo do Qwen 2.5 14B (`max_position_embeddings`). L40S tem VRAM suficiente pra KV cache completo. |
+| `--max-model-len` | `65536` | gpt-oss-20b suporta 128K nativo; 65K conservador — pesos ~15GB, ~28GB livres pra KV cache na L40S. Ver ADR-030. |
 | `--gpu-memory-utilization` | `0.90` | Margem confortavel — modelo ocupa ~15GB de 48GB |
 | `--enforce-eager` | desativado | CUDA graphs + torch.compile ativados. L40S tem margem de VRAM. |
 | `--enable-chunked-prefill` | ativado | Permite processar prefill em chunks, reduz memory spikes em prompts grandes (~12K system prompt) |
@@ -649,7 +649,7 @@ Configuradas via ConfigMap `claude-code-config` no namespace `agent-sandboxes`. 
 | `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `1` | `1` | Impede conexoes de startup ao api.anthropic.com (issue #36998) |
 | `CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS` | `1` | `1` | Evita falha no modo interativo em pods sem internet |
 | `CLAUDE_CODE_ATTRIBUTION_HEADER` | `0` | `0` | Desabilita hash por-request que quebra prefix caching no vLLM |
-| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `8192` | `8192` | System prompt consome ~16K tokens; 8192 + 16K = ~24K, seguro no context de 32K. 16384 estourava (ADR-017) |
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `16384` | `16384` | System prompt consome ~16K tokens; 16384 + 16K = ~32K, seguro no context de 65K. Aumentado de 8192 (ADR-030) |
 | `MAX_THINKING_TOKENS` | `0` | `0` | Desabilitado para Qwen |
 | `MLFLOW_TRACKING_URI` | `http://mlflow-tracking.observability.svc.cluster.local:5000` | Same | MLflow trace storage (`mlflow autolog claude`) |
 | `MLFLOW_EXPERIMENT_NAME` | `claude-code-agents` | `claude-code-agents` | Experiment grouping |

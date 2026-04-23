@@ -168,6 +168,7 @@ Validated and adopted UI/observability sidecars (claude-devtools, claude-task-vi
 - **Web terminal (ttyd)** — browser-based interactive Claude Code session via ttyd on port 7681, accessible via OpenShift Route with edge TLS and optional basic auth. No CLI or VPN required — full streaming, tool approvals, and session continuity in the browser
 - **NetworkPolicy fix** for OVN-Kubernetes DNAT — `ipBlock` rules for K8s API don't work post-DNAT; added pod/node network `10.0.0.0/8` to egress rules
 - **MachineSet templates** templatized with `envsubst` placeholders and auto-discovery script (`create-machineset.sh`)
+- **Context window expansion** (ADR-030) — increased gpt-oss-20b `--max-model-len` from 32768 to 65536 and `CLAUDE_CODE_MAX_OUTPUT_TOKENS` from 8192 to 16384. Qwen3-Coder-Next (80B MoE) evaluated but OOMs on single L40S 48GB — requires 2x GPU with tensor parallelism for future deployment
 
 ### Multi-Agent Task Management — Evaluated & Discarded
 
@@ -195,6 +196,7 @@ Validated and adopted UI/observability sidecars (claude-devtools, claude-task-vi
 | [ADR-027](adrs/027-claude-task-viewer-sidecar.md) | claude-task-viewer as sidecar for task observability |
 | [ADR-028](adrs/028-slack-bridge-integration.md) | Bidirectional Slack integration via slack-bridge |
 | [ADR-029](adrs/029-web-terminal-ttyd.md) | Web terminal via ttyd for interactive agent access |
+| [ADR-030](adrs/030-context-window-expansion.md) | Context window expansion 32K→65K, Qwen3-Coder-Next evaluated |
 
 ### Notable Problems Solved
 

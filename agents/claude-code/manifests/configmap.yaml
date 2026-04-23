@@ -31,7 +31,7 @@ data:
   # Disables per-request hash in system prompt that defeats vLLM prefix caching
   CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
   # Token limits tuned for GPT-OSS-20B context window
-  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "8192"
+  CLAUDE_CODE_MAX_OUTPUT_TOKENS: "16384"
   MAX_THINKING_TOKENS: "0"
   # MLflow: native Claude Code tracing (tool calls, tokens, conversations)
   # Ref: https://mlflow.org/docs/latest/genai/tracing/integrations/listing/claude_code/
