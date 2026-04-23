@@ -6,12 +6,6 @@ LOG_FILE="$LOG_DIR/claude.jsonl"
 mkdir -p "$LOG_DIR"
 touch "$LOG_FILE"
 
-# ── Claude Code global config (rules, skills, CLAUDE.md) ────
-RULES_SKILLS="/opt/app-root/rules-skills/.claude"
-if [[ -d "$RULES_SKILLS" ]]; then
-  mkdir -p "$HOME/.claude"
-  cp -r "$RULES_SKILLS"/* "$HOME/.claude/" 2>/dev/null || true
-fi
 
 # ── Observability hooks setup (merge into settings.json) ────
 HOOKS_SETTINGS="/opt/app-root/hooks/settings.json"

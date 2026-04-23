@@ -169,6 +169,7 @@ Validated and adopted UI/observability sidecars (claude-devtools, claude-task-vi
 - **NetworkPolicy fix** for OVN-Kubernetes DNAT — `ipBlock` rules for K8s API don't work post-DNAT; added pod/node network `10.0.0.0/8` to egress rules
 - **MachineSet templates** templatized with `envsubst` placeholders and auto-discovery script (`create-machineset.sh`)
 - **Context window expansion** (ADR-030) — increased gpt-oss-20b `--max-model-len` from 32768 to 65536 and `CLAUDE_CODE_MAX_OUTPUT_TOKENS` from 8192 to 16384. Qwen3-Coder-Next (80B MoE) evaluated but OOMs on single L40S 48GB — requires 2x GPU with tensor parallelism for future deployment
+- **Image cleanup** — removed `rules-skills` git clone from Dockerfile and copy logic from entrypoint.sh. Agent pod starts clean; CLAUDE.md/rules/skills configuration deferred to [Future Explorations Sprint F](FUTURE_EXPLORATIONS.md)
 
 ### Multi-Agent Task Management — Evaluated & Discarded
 
